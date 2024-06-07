@@ -5,3 +5,5 @@ e.g. Order Header > Order Line Items
 See sample file Sunscriptions-10.csv
 
 Redis connection details are loaded from a file called config.properties. (Use sample-config.properties as a template.)
+
+Note: This code is for demo / learning purposes only. Use the RIOT utility to load data into Redis.
