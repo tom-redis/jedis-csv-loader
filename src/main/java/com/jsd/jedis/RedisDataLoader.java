@@ -4,14 +4,13 @@ import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Properties;
 
-
 import org.json.JSONObject;
 
 import com.jsd.utils.*;
 
 import redis.clients.jedis.*;
-
-
+import redis.clients.jedis.params.ScanParams;
+import redis.clients.jedis.resps.ScanResult;
 
 /**
  * Simple Jedis Client
@@ -22,18 +21,18 @@ public class RedisDataLoader {
     private Pipeline jedisPipeline;
     private JedisPooled jedisPooled;
 
-    public RedisDataLoader(String configFile) throws Exception{
+    public RedisDataLoader(String configFile) throws Exception {
         Properties config = new Properties();
         config.load(new FileInputStream(configFile));
 
-        this.jedisPooled = new JedisPooled(config.getProperty("redis.host", "localhost"), 
-                                            Integer.parseInt(config.getProperty("redis.port", "6379")),
-                                            config.getProperty("redis.user", "default"), config.getProperty("redis.password"));
+        this.jedisPooled = new JedisPooled(config.getProperty("redis.host", "localhost"),
+                Integer.parseInt(config.getProperty("redis.port", "6379")),
+                config.getProperty("redis.user", "default"), config.getProperty("redis.password"));
 
         this.jedisPipeline = this.jedisPooled.pipelined();
 
         System.out.println("[RedisDataLoader] Connection Successful PING >> " + jedisPooled.ping());
-          
+
     }
 
     public Pipeline getJedisPipeline() {
@@ -48,9 +47,8 @@ public class RedisDataLoader {
         this.jedisPooled.close();
     }
 
-
-
-    public  void loadGEO(String key, CSVScanner csvScanner, String geoCol, String longCol, String latCol, String entity) {
+    public void loadGEO(String key, CSVScanner csvScanner, String geoCol, String longCol, String latCol,
+            String entity) {
 
         try {
             int record = 0;
@@ -80,7 +78,7 @@ public class RedisDataLoader {
      * The dataset must have a unique identified to serve as the key
      */
 
-    public  void loadHash(String keyPrefix, String idCol, CSVScanner csvScanner) throws Exception {
+    public void loadHash(String keyPrefix, String idCol, CSVScanner csvScanner) throws Exception {
 
         try {
 
@@ -89,8 +87,8 @@ public class RedisDataLoader {
             String[] columnNames = csvScanner.getColumnNames();
 
             while (csvScanner.hasMoreRecords()) {
-            
-                //load the record into redis
+
+                // load the record into redis
 
                 try {
                     // load the record in a Map
@@ -98,24 +96,23 @@ public class RedisDataLoader {
 
                     // set the id column
                     recordMap.put("_id", csvScanner.getColumnValue(idCol));
-                
-                    //add the other columns
+
+                    // add the other columns
                     for (int c = 0; c < numCols; c++) {
                         if (!columnNames[c].equals(idCol)) {
-                            recordMap.put(columnNames[c], csvScanner.getColumnValue(columnNames[c]));   
+                            recordMap.put(columnNames[c], csvScanner.getColumnValue(columnNames[c]));
                         }
                     }
 
-                    jedisPipeline.hset(keyPrefix + csvScanner.getColumnValue(idCol), recordMap);  
-                }
-                catch(Exception e) {
+                    jedisPipeline.hset(keyPrefix + csvScanner.getColumnValue(idCol), recordMap);
+                } catch (Exception e) {
                     jedisPipeline.del(keyPrefix + csvScanner.getColumnValue(idCol));
                 }
 
                 record++;
             }
 
-            //jedisPipeline.sync();
+            // jedisPipeline.sync();
 
             System.out.println("Successfully Loaded " + --record + " Records into Hashes");
 
@@ -124,13 +121,14 @@ public class RedisDataLoader {
         }
     }
 
-
     /*
      * Loads a CSV file into JSON objects, with upto 1 level of nesting.
-     * It assumes the dataset is sorted by the headerID and all columns on and after the detailID are line items of the header
+     * It assumes the dataset is sorted by the headerID and all columns on and after
+     * the detailID are line items of the header
      */
 
-    public  void loadJSON(String keyPrefix, String keyType, String headerID, String detailID, String detailName, CSVScanner csvScanner, int numRows) throws Exception {
+    public void loadJSON(String keyPrefix, String keyType, String headerID, String detailID, String detailName,
+            CSVScanner csvScanner, int numRows) throws Exception {
 
         int numCols = csvScanner.getNumColumns();
         String[] columnNames = csvScanner.getColumnNames();
@@ -149,15 +147,15 @@ public class RedisDataLoader {
 
             currentHeader = csvScanner.getColumnValue(headerID);
 
-            //new header record
-            if(!currentHeader.equals(prevHeader) && !"NA".equals(prevHeader)) {
+            // new header record
+            if (!currentHeader.equals(prevHeader) && !"NA".equals(prevHeader)) {
 
                 keyID = ("header".equalsIgnoreCase(keyType)) ? prevHeader : "" + record + "-" + sysTime;
 
-                //write the previous record
+                // write the previous record
                 jedisPipeline.jsonSet(keyPrefix + keyID, headerObj);
 
-                //start new header record
+                // start new header record
                 headerObj = new JSONObject();
 
                 record++;
@@ -169,45 +167,63 @@ public class RedisDataLoader {
 
             // add the other columns
             for (int c = 0; c < numCols; c++) {
-                
-                if(detailID.equals(columnNames[c])) {
+
+                if (detailID.equals(columnNames[c])) {
                     loadingHeader = false;
                 }
 
-                if(loadingHeader) {
+                if (loadingHeader) {
                     headerObj.put(columnNames[c], csvScanner.getColumnValue(c));
-                }
-                else {
+                } else {
                     detailObj.put(columnNames[c], csvScanner.getColumnValue(c));
                 }
             }
 
-            //load details as an array, if the dataset has a 1 - Many relationship
-            if(!loadingHeader) {
+            // load details as an array, if the dataset has a 1 - Many relationship
+            if (!loadingHeader) {
                 headerObj.append(detailName, detailObj);
             }
-           
 
             prevHeader = currentHeader;
         }
 
-
-
-        //write the last final record
+        // write the last final record
         keyID = ("header".equalsIgnoreCase(keyType)) ? currentHeader : "" + record + "-" + sysTime;
         jedisPipeline.jsonSet(keyPrefix + keyID, headerObj);
 
-        //flush the pipeline
+        // flush the pipeline
         jedisPipeline.sync();
 
         System.out.println("[RedisDataLoader] Loaded " + record + " record objects");
 
     }
 
+    public int deleteKeys(String keyPrefix) {
+
+        ScanParams scanParams = new ScanParams().count(100).match(keyPrefix + "*"); // Set the chunk size
+        String cursor = ScanParams.SCAN_POINTER_START;
+
+        int keyCount = 0;
+
+        while (true) {
+            ScanResult<String> scanResult = jedisPooled.scan(cursor, scanParams);
+
+            for (String key : scanResult.getResult()) {
+                keyCount++;
+                //jedisPooled.del(key);
+                jedisPooled.expire(key, 5);
+            }
+
+            cursor = scanResult.getCursor();
+            if (cursor.equals("0")) {
+                break; // End of scan
+            }
+        }
+
+        return keyCount;
+    }
+
     public static void main(String[] args) throws Exception {
-
-      
-
 
     }
 }
