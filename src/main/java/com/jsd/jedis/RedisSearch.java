@@ -27,8 +27,6 @@ public class RedisSearch {
 
     public static void main(String[] args) throws Exception {
 
-        // disable check for self signed certs when using TLS
-        System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
 
         Scanner s = new Scanner(System.in);
 
@@ -44,8 +42,17 @@ public class RedisSearch {
             CSVScanner subscriptions = new CSVScanner(
                     "C:/Users/Jay Datsur/OneDrive/Tech/Redis/DataSets/subscriptions.csv", ",", false);
 
+            //drop the existing index
+            try { 
+                jedisPipeline.ftDropIndex("idx:healthcare");
+                System.out.println("[RedisSearch] Dropped Index");
+            }
+            catch(Exception e){}
+            
+;
             //delete existing keys
-        
+            System.out.println("Deleting Existing Keys");
+            System.out.println("Deleted " + redisDataLoader.deleteKeys("healthcare:subscriptions:") + " Keys");
 
             // load into JSON
             redisDataLoader.loadJSON("healthcare:subscriptions:", "header", "SubscriberUniqueID", "DependantUniqueID",
@@ -69,7 +76,7 @@ public class RedisSearch {
                 jedisPipeline.ftCreate("idx:healthcare", IndexOptions.defaultOptions().setDefinition(def), schema);
                 jedisPipeline.sync();
 
-                System.out.println("[CignaPoc] Created Index");
+                System.out.println("[RedisSearch] Created Index");
 
             } catch (Exception e) {
             }

@@ -130,6 +130,8 @@ public class RedisDataLoader {
     public void loadJSON(String keyPrefix, String keyType, String headerID, String detailID, String detailName,
             CSVScanner csvScanner, int numRows) throws Exception {
 
+        System.out.println("[RedisDataLoader] Loading Keys " + keyPrefix);
+
         int numCols = csvScanner.getNumColumns();
         String[] columnNames = csvScanner.getColumnNames();
         int record = 1;
@@ -200,7 +202,7 @@ public class RedisDataLoader {
 
     public int deleteKeys(String keyPrefix) {
 
-        ScanParams scanParams = new ScanParams().count(100).match(keyPrefix + "*"); // Set the chunk size
+        ScanParams scanParams = new ScanParams().count(10000).match(keyPrefix + "*"); // Set the chunk size
         String cursor = ScanParams.SCAN_POINTER_START;
 
         int keyCount = 0;
@@ -210,8 +212,7 @@ public class RedisDataLoader {
 
             for (String key : scanResult.getResult()) {
                 keyCount++;
-                //jedisPooled.del(key);
-                jedisPooled.expire(key, 5);
+                jedisPipeline.del(key);
             }
 
             cursor = scanResult.getCursor();
@@ -219,6 +220,8 @@ public class RedisDataLoader {
                 break; // End of scan
             }
         }
+
+        jedisPipeline.sync();
 
         return keyCount;
     }
