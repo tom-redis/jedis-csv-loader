@@ -174,10 +174,13 @@ public class RedisDataLoader {
                     loadingHeader = false;
                 }
 
+                
                 if (loadingHeader) {
-                    headerObj.put(columnNames[c], csvScanner.getColumnValue(c));
+                    setValue(headerObj, columnNames[c], csvScanner.getColumnValue(c));
+                    //headerObj.put(columnNames[c], csvScanner.getColumnValue(c));
                 } else {
-                    detailObj.put(columnNames[c], csvScanner.getColumnValue(c));
+                    setValue(detailObj, columnNames[c], csvScanner.getColumnValue(c));
+                    //detailObj.put(columnNames[c], csvScanner.getColumnValue(c));
                 }
             }
 
@@ -224,6 +227,25 @@ public class RedisDataLoader {
         jedisPipeline.sync();
 
         return keyCount;
+    }
+
+    private void setValue(JSONObject jobj, String key, String stringValue) {
+        try {
+            int i = Integer.parseInt(stringValue);
+            jobj.put(key, i);
+            return;
+        }
+        catch(Exception e) {}
+
+        try {
+            double d = Double.parseDouble(stringValue);
+            jobj.put(key, d);
+            return;
+        }
+        catch(Exception e) {}
+
+        jobj.put(key, stringValue);
+
     }
 
     public static void main(String[] args) throws Exception {
