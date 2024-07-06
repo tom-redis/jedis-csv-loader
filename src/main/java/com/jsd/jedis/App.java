@@ -69,16 +69,22 @@ public class App {
 
         RedisDataLoader redisDataLoader = new RedisDataLoader("./config.properties");
 
+        String filePath = "C:/Users/Jay Datsur/OneDrive/Tech/Redis/DataSets";
+
+        String fileName = "";
+        fileName = "support_tickets_demo.csv";
+        //fileName = "subscriptions.csv";
+
+        CSVScanner scanner = new CSVScanner(filePath + "/" +  fileName,",",false);
 
         //load into hash
-        //CSVScanner tickets = new CSVScanner("C:/Users/Jay Datsur/OneDrive/Tech/Redis/DataSets/support_tickets_demo.csv",",",false);
-        //redisDataLoader.loadHash("support:tickets:", "TicketID", tickets);
+        //redisDataLoader.loadHash("hash:support:tickets:", "TicketID", scanner);
 
         //load into JSON
         String keyType = "random"; // header or random
-        CSVScanner subscriptions = new CSVScanner("C:/Users/Jay Datsur/OneDrive/Tech/Redis/DataSets/subscriptions.csv",",",false);
-        redisDataLoader.loadJSON("healthcare:subscriptions:", keyType, "SubscriberUniqueID", "DependantUniqueID", "dependants", subscriptions, 0);
 
+        //redisDataLoader.loadJSON("healthcare:subscriptions:", keyType, "SubscriberUniqueID", "DependantUniqueID", "dependants", subscriptions, 0);
+        redisDataLoader.loadJSON("support:tickets:", keyType, "TicketID", "NA", "NA", scanner, 0);
 
         redisDataLoader.close();
 

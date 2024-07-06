@@ -3,13 +3,10 @@ package com.jsd.jedis;
 import java.io.FileInputStream;
 import java.util.Properties;
 
-
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
-
-
 
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.Pipeline;
@@ -90,8 +87,7 @@ public class RedisIndexFactory {
         IndexDefinition def = new IndexDefinition(IndexDefinition.Type.valueOf(indexType.toUpperCase()))
                 .setPrefixes(new String[] { prefix });
 
-        
-        //drop index if exists
+        // drop index if exists
         dropIndex(indexName);
 
         // create the Index
@@ -114,11 +110,17 @@ public class RedisIndexFactory {
         }
     }
 
+    public JsonArray getIndexObj(String indexDefFile) throws Exception {
+        JsonReader rdr = Json.createReader(new FileInputStream(indexDefFile));
+        JsonObject indexDefObj = rdr.readObject();
 
+
+        // loop through the fields
+        return indexDefObj.getJsonArray("schema");
+    }
 
     public static void main(String[] args) throws Exception {
 
- 
         RedisIndexFactory indexFactory = new RedisIndexFactory("./config.properties");
         indexFactory.createIndex("idx:support", "./index-def-support.json");
 

@@ -112,7 +112,7 @@ public class RedisDataLoader {
                 record++;
             }
 
-            // jedisPipeline.sync();
+            jedisPipeline.sync();
 
             System.out.println("Successfully Loaded " + --record + " Records into Hashes");
 

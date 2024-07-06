@@ -2,22 +2,27 @@ package com.jsd.jedis;
 
 import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
-import org.json.JSONArray;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+
 import org.json.JSONObject;
 
 import com.jsd.utils.*;
 
+import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 
 import redis.clients.jedis.search.Query;
 import redis.clients.jedis.search.SearchResult;
 import redis.clients.jedis.search.Document;
-import redis.clients.jedis.search.FtSearchIteration;
 
 /**
  * Redis Search Client using Jedis
@@ -27,7 +32,7 @@ public class AppSearch {
 
     public static void main(String[] args) throws Exception {
 
-        //set the config file
+        // set the config file
         String configFile = "./config.properties";
 
         Properties config = new Properties();
@@ -35,7 +40,8 @@ public class AppSearch {
 
         RedisDataLoader redisDataLoader = new RedisDataLoader(configFile);
         Pipeline jedisPipeline = redisDataLoader.getJedisPipeline();
-        
+  
+
         String indexName = config.getProperty("index.name");
         String indexDefFile = config.getProperty("index.def.file");
 
@@ -43,26 +49,26 @@ public class AppSearch {
 
         Scanner s = new Scanner(System.in);
         System.out.println("\nWould you like to Reload Data for: " + indexName + " ? (y/n)");
-        
+
         String loadData = s.nextLine();
 
         if ("y".equalsIgnoreCase(loadData)) {
 
             String prefix = config.getProperty("key.prefix");
 
-            //drop the index
+            // drop the index
             indexFactory.dropIndex(indexName);
 
-            //delete existing keys
+            // delete existing keys
             System.out.println("[AppSearch] Deleting Existing Keys");
             System.out.println("[AppSearch] Deleted " + redisDataLoader.deleteKeys(prefix) + " Keys");
 
             // load data as JSON
             CSVScanner scanner = new CSVScanner(config.getProperty("data.file"), ",", false);
-            redisDataLoader.loadJSON(prefix, "header", config.getProperty("header.field"), 
-                                             config.getProperty("detail.field"),
-                                             config.getProperty("detail.attr.name"),
-                                            scanner, Integer.parseInt(config.getProperty("data.record.limit")));
+            redisDataLoader.loadJSON(prefix, "header", config.getProperty("header.field"),
+                    config.getProperty("detail.field"),
+                    config.getProperty("detail.attr.name"),
+                    scanner, Integer.parseInt(config.getProperty("data.record.limit")));
 
             // Creating the index
             indexFactory.createIndex(indexName, indexDefFile);
@@ -73,7 +79,8 @@ public class AppSearch {
 
         while (true) {
 
-            System.out.println("\n==========================================================================================");
+            System.out.println(
+                    "\n==========================================================================================");
             System.out.println("Enter Search String :");
 
             String queryStr = s.nextLine();
@@ -82,99 +89,178 @@ public class AppSearch {
                 break;
             }
 
- 
             Query q = new Query(queryStr);
             q.dialect(2);
             q.limit(0, Integer.parseInt(config.getProperty("query.record.limit", "10")));
 
+            try {
+                Response<SearchResult> res0 = jedisPipeline.ftSearch(indexName, queryStr);
+                jedisPipeline.sync();
+                SearchResult searchResult = res0.get();
 
-            Response<SearchResult> res0 = jedisPipeline.ftSearch(indexName, q);
-            jedisPipeline.sync();
-            SearchResult res = res0.get();
+                System.out.println("Number of results: " + searchResult.getTotalResults());
+                List<Document> docs = searchResult.getDocuments();
 
-            System.out.println("Number of results: " + res.getTotalResults());
-            List<Document> docs = res.getDocuments();
+                // loop through the results
+                for (Document doc : docs) {
+                    JSONObject obj = new JSONObject((String) doc.get("$"));
 
-            // loop through the results
-            for (Document doc : docs) {
-                JSONObject obj = new JSONObject((String) doc.get("$"));
+                    //print the keys for each result object
+                    System.out.print(doc.getId() + " |");
+                }
 
-                System.out.print(doc.getId() + " |");
+            } catch (Exception e) {
+                System.out.println("[AppSearch] ERROR in Query Syntax, Please Try Again :");
+                continue;
             }
         }
 
+
+        System.out.print("BATCH MODE: Enter number of queries : ");
+        int numQueries = Integer.parseInt(s.nextLine());
+        
+        runSprint(redisDataLoader, numQueries, indexName, indexFactory.getIndexObj(indexDefFile));
 
         s.close();
         redisDataLoader.close();
 
     }
 
+    public static void runSprint(RedisDataLoader redisDataLoader, int numQueries, String indexName, JsonArray indexSchema) {
 
-    public static void  runSprint(Pipeline jedisPipeline) {
-        System.out.println("Running a Work Load of 500 Queries");
+        
+        JedisPooled jedisPooled = redisDataLoader.getJedisPooled();
+        Pipeline jedisPipeline = redisDataLoader.getJedisPipeline();
+
+        ArrayList<String> tagFieldList = new ArrayList<String>();
+        HashMap<String, ArrayList<String>> tagValueMap = new HashMap<String, ArrayList<String>>();
+
+        // loop through the schema, and extract all tag fields and their values.
+        for (int i = 0; i < indexSchema.size(); i++) {
+            JsonObject fieldObj = indexSchema.getJsonObject(i);
+
+            if ("TAG".equalsIgnoreCase(fieldObj.getString("type"))) {
+                String fieldName = fieldObj.getString("alias");
+                tagFieldList.add(fieldName);
+                tagValueMap.put(fieldName, toArrayList(jedisPooled.ftTagVals(indexName, fieldName)));
+            }
+        }
+
+        System.out.println("[AppSearch] Executing " + numQueries + " Queries");
+        long startTime = System.currentTimeMillis();
+
+        ArrayList<String> queryList = new ArrayList<String>();
         ArrayList<Response<SearchResult>> resultList = new ArrayList<Response<SearchResult>>();
+    
+        //execute queries
+        for (int q = 0; q < numQueries; q++) {
 
-        for (int i = 100; i < 500; i++) {
-            String id = "DEP00" + i;
+            String queryStr = "";
 
-            String queryStr1 = "(@SubscriberUniqueID:{" + id + "})|(@SubscriberSSN:{" + id
-                    + "})|(@DependantSSN:{" + id + "})|(@DependantUniqueID:{" + id + "})";
+            ArrayList<String> fieldList = pickRandom(tagFieldList);
 
-            Query q1 = new Query(queryStr1);
-            q1.limit(0, 10);
+            //build query string
+            for (int f = 0; f < fieldList.size(); f++) {
+                queryStr = queryStr + getFilterClause(fieldList.get(f), pickRandom(tagValueMap.get(fieldList.get(f)))) + " ";
+            }
 
-            resultList.add(jedisPipeline.ftSearch("idx:healthcare", q1));
+            queryList.add(queryStr);
+
+            Query q1 = new Query(queryStr);
+            q1.limit(0, 100);
+            q1.dialect(4);
+            q1.setNoContent();
+
+            resultList.add(jedisPipeline.ftSearch(indexName, q1));
+
         }
 
         jedisPipeline.sync();
 
-        System.out.println("Query Execution Complete");
+        long endTime = System.currentTimeMillis();
+        System.out.println("[AppSearch] Query Execution Complete in " + getExecutionTime(startTime, endTime));
 
-        for( Response<SearchResult> res0 : resultList) {
-            Document doc = res0.get().getDocuments().get(0);
+        //print results
+        for(int r = 0; r < resultList.size(); r++) {
+            System.out.print(queryList.get(r) + " #### >>> :");
+            Response<SearchResult> res0 = resultList.get(r);
+            SearchResult searchResult = res0.get();
 
-            JSONObject obj = new JSONObject((String) doc.get("$"));
-            System.out.print(obj.getString("SubName") + " " + obj.getString("SubscriberSSN") + "|");
-           
-        }
-    }
+            List<Document> docs = searchResult.getDocuments();
 
-    public static void formatResult(String patientID, JSONObject obj) {
-        // check for sub or dependant
-        if (patientID.equalsIgnoreCase(obj.getString("SubscriberSSN")) ||
-                patientID.equalsIgnoreCase(obj.getString("SubscriberUniqueID"))) {
-            System.out.println("This is a subscriber:");
-            System.out.println(obj.getString("SubscriberUniqueID") + " | " + obj.getString("SubscriberSSN") + " | "
-                    + obj.getString("SubName")
-                    + " | " + obj.getString("SubscriberDOB") + " | " + obj.getString("SubscriberBalAmount1")
-                    + " | " + obj.getString("SubscriberBalAmount2") + " | " + obj.getString("SubscriberBalAmount3")
-                    + " | " + obj.getString("SubscriberBalAmount4"));
-        } else {
-            System.out.println("This is a dependant:");
-            System.out.println(obj.getString("SubscriberUniqueID") + " | " + obj.getString("SubscriberSSN") + " | "
-                    + obj.getString("SubName")
-                    + " | " + obj.getString("SubscriberDOB") + " | " + obj.getString("SubscriberBalAmount1")
-                    + " | " + obj.getString("SubscriberBalAmount2") + " | " + obj.getString("SubscriberBalAmount3")
-                    + " | " + obj.getString("SubscriberBalAmount4"));
+            int counter = 0;
+            for(Document doc : docs){
+                System.out.print(doc.getId() + "|");
 
-            JSONArray depArray = obj.getJSONArray("dependants");
-
-            for (int d = 0; d < depArray.length(); d++) {
-                JSONObject dep = (JSONObject) depArray.get(d);
-
-                if (patientID.equalsIgnoreCase(dep.getString("DependantSSN"))
-                        || patientID.equalsIgnoreCase(dep.getString("DependantUniqueID"))) {
-                    System.out.println(dep.getString("DependantUniqueID") + " | " + dep.getString("DependantSSN")
-                            + " | " + dep.getString("Dependant Name")
-                            + " | " + dep.getString("DependantDOB") + " | " + dep.getString("DependantBalAmount1")
-                            + " | " + dep.getString("DependantBalAmount2") + " | "
-                            + dep.getString("DependantBalAmount3")
-                            + " | " + dep.getString("DependantBalAmount4"));
-
+                if(counter++ == 3) {
                     break;
                 }
             }
+
+            System.out.println(" ...");
+            //System.out.println(" #Keys: " + searchResult.getTotalResults());
         }
+
+    }
+
+    private static ArrayList<String> pickRandom(ArrayList<String> superList) {
+        ArrayList<String> randomList = new ArrayList<String>();
+
+        int rand = ThreadLocalRandom.current().nextInt(0, superList.size());
+
+        int toggle = ThreadLocalRandom.current().nextInt(0, 3);
+
+        if (toggle == 0) {
+            randomList.add(superList.get(rand));
+        } else if (toggle == 1) {
+            for (int i = 0; i <= rand; i++) {
+                randomList.add(superList.get(i));
+            }
+        } else {
+            for (int i = rand; i < superList.size(); i++) {
+                randomList.add(superList.get(i));
+            }
+        }
+
+        return randomList;
+    }
+
+    private static ArrayList<String> toArrayList(Set<String> valueSet) {
+
+        ArrayList<String> returnList = new ArrayList<String>();
+
+        for(String val : valueSet) {
+            returnList.add(val);
+        }
+
+        return returnList;
+
+    }
+
+    private static String getFilterClause(String fieldName , ArrayList<String> valueList) {
+        String filter = "";
+       
+        filter = filter + "@" + fieldName + ":{";
+
+        String valueStr = "";
+
+        for(int v = 0; v < valueList.size(); v++) {
+                valueStr = valueStr + valueList.get(v) + ((v < (valueList.size() -1)) ? "|" : "");
+        }
+
+        filter = filter + valueStr + "}"; 
+
+
+        return filter;
+    }
+
+    static String getExecutionTime(long startTime, long endTime) {
+        long diff = endTime - startTime;
+
+        long sec = Math.floorDiv(diff,1000l);
+        long msec = diff % 1000l;
+
+        return "" + sec + " s : " + msec + " ms";
     }
 
 }
