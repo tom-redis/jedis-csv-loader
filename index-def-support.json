@@ -1,0 +1,42 @@
+{
+	"type": "JSON",
+	"prefix": "support:tickets",
+	"schema": [
+		{
+			"field": "$.Description",
+			"alias": "Description",
+			"type": "TEXT",
+			"sortable": true
+		},
+		{
+			"field": "$.Status",
+			"alias": "Status",
+			"type": "TAG",
+			"sortable": true
+		},
+		{
+			"field": "$.Priority",
+			"alias": "Priority",
+			"type": "TAG",
+			"sortable": true
+		},
+		{
+			"field": "$.IssueType",
+			"alias": "IssueType",
+			"type": "TAG",
+			"sortable": true
+		},
+		{
+			"field": "$.CustomerRating",
+			"alias": "CSAT",
+			"type": "NUMERIC",
+			"sortable": true
+		},
+		{
+			"field": "$.ResolutionTime",
+			"alias": "ResolutionTime",
+			"type": "NUMERIC",
+			"sortable": true
+		}
+	]
+}
