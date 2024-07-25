@@ -20,9 +20,10 @@ public class RedisDataLoader {
 
     private Pipeline jedisPipeline;
     private JedisPooled jedisPooled;
+    private Properties config;
 
     public RedisDataLoader(String configFile) throws Exception {
-        Properties config = new Properties();
+        config = new Properties();
         config.load(new FileInputStream(configFile));
 
         this.jedisPooled = new JedisPooled(config.getProperty("redis.host", "localhost"),
@@ -32,7 +33,40 @@ public class RedisDataLoader {
         this.jedisPipeline = this.jedisPooled.pipelined();
 
         System.out.println("[RedisDataLoader] Connection Successful PING >> " + jedisPooled.ping());
+    }
 
+    public boolean testPool() {
+
+        boolean isValid = true;
+
+        try {
+            this.jedisPooled.ping();
+
+        } catch (Exception e) {
+
+            System.out.println("[RedisDataLoader] Test Failed:\n" + e.toString());
+            System.out.println("[RedisDataLoader] Pool Status: Created: " + this.jedisPooled.getPool().getCreatedCount() + " Active: " +
+            this.jedisPooled.getPool().getNumActive() + " Idle: " + this.jedisPooled.getPool().getNumIdle());
+
+
+
+            isValid = false;
+
+            this.jedisPooled.close();
+
+            this.jedisPooled = new JedisPooled(config.getProperty("redis.host", "localhost"),
+                    Integer.parseInt(config.getProperty("redis.port", "6379")),
+                    config.getProperty("redis.user", "default"), config.getProperty("redis.password"));
+
+            this.jedisPipeline = this.jedisPooled.pipelined();
+
+            this.jedisPooled.ping();
+
+            System.out.println("[RedisDataLoader] New Pool Created: " + this.jedisPooled.getPool().getCreatedCount() + " Active: " +
+            this.jedisPooled.getPool().getNumActive() + " Idle: " + this.jedisPooled.getPool().getNumIdle());
+        }
+
+        return isValid;
     }
 
     public Pipeline getJedisPipeline() {
@@ -174,13 +208,12 @@ public class RedisDataLoader {
                     loadingHeader = false;
                 }
 
-                
                 if (loadingHeader) {
                     setValue(headerObj, columnNames[c], csvScanner.getColumnValue(c));
-                    //headerObj.put(columnNames[c], csvScanner.getColumnValue(c));
+                    // headerObj.put(columnNames[c], csvScanner.getColumnValue(c));
                 } else {
                     setValue(detailObj, columnNames[c], csvScanner.getColumnValue(c));
-                    //detailObj.put(columnNames[c], csvScanner.getColumnValue(c));
+                    // detailObj.put(columnNames[c], csvScanner.getColumnValue(c));
                 }
             }
 
@@ -225,7 +258,6 @@ public class RedisDataLoader {
         }
 
         jedisPipeline.sync();
-
         return keyCount;
     }
 
@@ -234,15 +266,15 @@ public class RedisDataLoader {
             int i = Integer.parseInt(stringValue);
             jobj.put(key, i);
             return;
+        } catch (Exception e) {
         }
-        catch(Exception e) {}
 
         try {
             double d = Double.parseDouble(stringValue);
             jobj.put(key, d);
             return;
+        } catch (Exception e) {
         }
-        catch(Exception e) {}
 
         jobj.put(key, stringValue);
 

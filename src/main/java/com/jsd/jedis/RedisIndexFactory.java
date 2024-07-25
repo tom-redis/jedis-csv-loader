@@ -1,6 +1,7 @@
 package com.jsd.jedis;
 
 import java.io.FileInputStream;
+import java.util.Map;
 import java.util.Properties;
 
 import javax.json.Json;
@@ -10,7 +11,6 @@ import javax.json.JsonReader;
 
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.Pipeline;
-
 import redis.clients.jedis.search.IndexDefinition;
 import redis.clients.jedis.search.IndexOptions;
 
@@ -24,6 +24,11 @@ public class RedisIndexFactory {
 
     private Pipeline jedisPipeline;
     private JedisPooled jedisPooled;
+
+    public RedisIndexFactory(Pipeline jedisPipeline, JedisPooled jedisPooled) throws Exception {
+        this.jedisPipeline = jedisPipeline;
+        this.jedisPooled = jedisPooled;
+    }
 
     public RedisIndexFactory(String configFile) throws Exception {
         Properties config = new Properties();
@@ -94,7 +99,7 @@ public class RedisIndexFactory {
         jedisPipeline.ftCreate(indexName, IndexOptions.defaultOptions().setDefinition(def), schema);
         jedisPipeline.sync();
 
-        System.out.println("[RedisIndexFactory] Created Index " + indexName);
+        System.out.println("[RedisIndexFactory] Indexing Started: " + indexName);
 
     }
 
@@ -118,6 +123,40 @@ public class RedisIndexFactory {
         // loop through the fields
         return indexDefObj.getJsonArray("schema");
     }
+
+    public double getIndexMetric(String indexName, String attr)  {
+
+        //Response<Map<java.lang.String,java.lang.Object>> resp = this.jedisPooled.ftInfo(indexName);
+        //Map<java.lang.String,java.lang.Object> infoMap = resp.get();
+
+        Map<java.lang.String,java.lang.Object> infoMap = this.jedisPooled.ftInfo(indexName);
+
+        String attrVal = (String)infoMap.get(attr);
+        
+        return Double.parseDouble(attrVal);
+    }
+
+
+    public void monitorIndex(String indexName, AppSearch appSearch) throws Exception {
+
+        Thread anonymousThread = new Thread() {
+            @Override
+            public void run()  {
+                try{
+                while(getIndexMetric(indexName, "percent_indexed") < 1.0) {
+                    Thread.sleep(1000l);
+                }
+
+                appSearch.startQueryPrompt();
+            }
+            catch(Exception e) {}
+            }
+        };
+
+        anonymousThread.start(); 
+    }
+
+
 
     public static void main(String[] args) throws Exception {
 
