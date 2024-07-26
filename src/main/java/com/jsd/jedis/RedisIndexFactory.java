@@ -147,7 +147,7 @@ public class RedisIndexFactory {
                     Thread.sleep(1000l);
                 }
 
-                appSearch.startQueryPrompt();
+                System.err.println("[RedisIndexFactory] Index Completed");;
             }
             catch(Exception e) {}
             }

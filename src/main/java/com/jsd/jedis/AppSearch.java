@@ -12,6 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.jsd.utils.*;
@@ -40,7 +41,6 @@ public class AppSearch {
 
         RedisDataLoader redisDataLoader = new RedisDataLoader(configFile);
         Pipeline jedisPipeline = redisDataLoader.getJedisPipeline();
-  
 
         String indexName = config.getProperty("index.name");
         String indexDefFile = config.getProperty("index.def.file");
@@ -54,33 +54,35 @@ public class AppSearch {
 
         if ("y".equalsIgnoreCase(loadData)) {
 
-            String prefix = config.getProperty("key.prefix");
+            String prefix = config.getProperty("data.key.prefix");
 
-            // drop the index
+            // DROP the INDEX
             indexFactory.dropIndex(indexName);
 
-            // delete existing keys
+            // DELETE existing KEYS
             System.out.println("[AppSearch] Deleting Existing Keys");
             System.out.println("[AppSearch] Deleted " + redisDataLoader.deleteKeys(prefix) + " Keys");
 
-            // load data as JSON
+            // LOAD DATA as JSON
             CSVScanner scanner = new CSVScanner(config.getProperty("data.file"), ",", false);
-            redisDataLoader.loadJSON(prefix, "header", config.getProperty("header.field"),
-                    config.getProperty("detail.field"),
-                    config.getProperty("detail.attr.name"),
+            redisDataLoader.loadJSON(prefix, "header", config.getProperty("data.header.field"),
+                    config.getProperty("data.detail.field"),
+                    config.getProperty("data.detail.attr.name"),
                     scanner, Integer.parseInt(config.getProperty("data.record.limit")));
 
-            // Creating the index
+            // CREATE the INDEX
             indexFactory.createIndex(indexName, indexDefFile);
 
         }
 
-        // perform a searh
+        // PRINT INDEX SCHEMA FOR REF
+        System.out.println("\n" + printIndexSchema(indexFactory.getIndexObj(indexDefFile), indexName) + "\n");
+
+        // START SEARCHING
 
         while (true) {
 
-            System.out.println(
-                    "\n==========================================================================================");
+            System.out.println("\n[----------------------------------------------------------------------------]");
             System.out.println("Enter Search String :");
 
             String queryStr = s.nextLine();
@@ -89,36 +91,56 @@ public class AppSearch {
                 break;
             }
 
+            int queryDialect = Integer.parseInt(config.getProperty("query.dialect", "1"));
+
             Query q = new Query(queryStr);
-            q.dialect(2);
+            q.dialect(queryDialect);
             q.limit(0, Integer.parseInt(config.getProperty("query.record.limit", "10")));
 
             try {
-                Response<SearchResult> res0 = jedisPipeline.ftSearch(indexName, queryStr);
+
+                // EXECUTE QUERY
+                Response<SearchResult> res0 = jedisPipeline.ftSearch(indexName, q);
                 jedisPipeline.sync();
                 SearchResult searchResult = res0.get();
 
-                System.out.println("Number of results: " + searchResult.getTotalResults());
+                //dialect 4 stops execution once the return row count is reached, for optimization
+                if (queryDialect != 4) {
+                    System.out.println("Number of results: " + searchResult.getTotalResults());
+                }
+
                 List<Document> docs = searchResult.getDocuments();
 
                 // loop through the results
                 for (Document doc : docs) {
-                    JSONObject obj = new JSONObject((String) doc.get("$"));
 
-                    //print the keys for each result object
+                    JSONObject obj = null;
+
+                    if (queryDialect == 4) {
+                        JSONArray arrObj = new JSONArray((String) doc.get("$"));
+                        obj = arrObj.getJSONObject(0);
+                        obj.isEmpty();
+
+                    } else {
+                        obj = new JSONObject((String) doc.get("$"));
+                        obj.isEmpty();
+                    }
+
+                    // print the keys for each result object
                     System.out.print(doc.getId() + " |");
                 }
 
             } catch (Exception e) {
-                System.out.println("[AppSearch] ERROR in Query Syntax, Please Try Again :");
+                System.out.println("[AppSearch] ERROR in Query Execution, Please Try Again :");
+                System.out.println(e.toString());
                 continue;
             }
         }
 
-
         System.out.print("BATCH MODE: Enter number of queries : ");
+
         int numQueries = Integer.parseInt(s.nextLine());
-        
+
         runSprint(redisDataLoader, numQueries, indexName, indexFactory.getIndexObj(indexDefFile));
 
         s.close();
@@ -126,16 +148,51 @@ public class AppSearch {
 
     }
 
-    public static void runSprint(RedisDataLoader redisDataLoader, int numQueries, String indexName, JsonArray indexSchema) {
+    public static String printIndexSchema(JsonArray indexArray, String indexName) {
 
-        
+        String schemaString = "SCHEMA: " + indexName + "\n";
+        HashMap<String, ArrayList<String>> fieldMap = new HashMap<String, ArrayList<String>>();
+
+        for (int i = 0; i < indexArray.size(); i++) {
+            JsonObject fieldObj = (JsonObject) indexArray.get(i);
+
+            String fieldType = fieldObj.getString("type");
+            String fieldName = fieldObj.getString("alias");
+
+            if (fieldMap.get(fieldType) == null) {
+                ArrayList<String> al = new ArrayList<String>();
+                al.add(fieldName);
+                fieldMap.put(fieldType, al);
+            } else {
+                fieldMap.get(fieldType).add(fieldName);
+            }
+        }
+
+        for (String type : new String[] { "TEXT", "TAG", "NUMERIC" }) {
+            ArrayList<String> fl = fieldMap.get(type);
+
+            schemaString = schemaString + type + ": ";
+
+            for (String field : fl) {
+                schemaString = schemaString + field + " | ";
+            }
+
+            schemaString = schemaString + "\n";
+        }
+
+        return schemaString;
+    }
+
+    public static void runSprint(RedisDataLoader redisDataLoader, int numQueries, String indexName,
+            JsonArray indexSchema) {
+
         JedisPooled jedisPooled = redisDataLoader.getJedisPooled();
         Pipeline jedisPipeline = redisDataLoader.getJedisPipeline();
 
         ArrayList<String> tagFieldList = new ArrayList<String>();
         HashMap<String, ArrayList<String>> tagValueMap = new HashMap<String, ArrayList<String>>();
 
-        // loop through the schema, and extract all tag fields and their values.
+        // LOOP THROUGH THE SCHEMA AND EXTRACT ALL TAGS FIELDS AND THEIR DISTINCT VALUES
         for (int i = 0; i < indexSchema.size(); i++) {
             JsonObject fieldObj = indexSchema.getJsonObject(i);
 
@@ -151,17 +208,19 @@ public class AppSearch {
 
         ArrayList<String> queryList = new ArrayList<String>();
         ArrayList<Response<SearchResult>> resultList = new ArrayList<Response<SearchResult>>();
-    
-        //execute queries
+
+        // EXECUTE QUERIES
+
         for (int q = 0; q < numQueries; q++) {
 
             String queryStr = "";
 
             ArrayList<String> fieldList = pickRandom(tagFieldList);
 
-            //build query string
+            // BUILD QUERY STRING
             for (int f = 0; f < fieldList.size(); f++) {
-                queryStr = queryStr + getFilterClause(fieldList.get(f), pickRandom(tagValueMap.get(fieldList.get(f)))) + " ";
+                queryStr = queryStr + getFilterClause(fieldList.get(f), pickRandom(tagValueMap.get(fieldList.get(f))))
+                        + " ";
             }
 
             queryList.add(queryStr);
@@ -178,28 +237,30 @@ public class AppSearch {
         jedisPipeline.sync();
 
         long endTime = System.currentTimeMillis();
-        System.out.println("[AppSearch] Query Execution Complete in " + getExecutionTime(startTime, endTime));
 
-        //print results
-        for(int r = 0; r < resultList.size(); r++) {
-            System.out.print(queryList.get(r) + " #### >>> :");
+        // PRINT RESULTS
+
+        for (int r = 0; r < resultList.size(); r++) {
+            System.out.print("[" + (r + 1) + "] " + queryList.get(r) + "\n     [[RESULTS]] ");
             Response<SearchResult> res0 = resultList.get(r);
             SearchResult searchResult = res0.get();
 
             List<Document> docs = searchResult.getDocuments();
 
             int counter = 0;
-            for(Document doc : docs){
+            for (Document doc : docs) {
                 System.out.print(doc.getId() + "|");
 
-                if(counter++ == 3) {
+                if (counter++ == 2) {
                     break;
                 }
             }
 
             System.out.println(" ...");
-            //System.out.println(" #Keys: " + searchResult.getTotalResults());
         }
+
+        System.out.println("===================================================================================");
+        System.out.println("[AppSearch] Query Execution Completed in " + getExecutionTime(startTime, endTime));
 
     }
 
@@ -229,7 +290,7 @@ public class AppSearch {
 
         ArrayList<String> returnList = new ArrayList<String>();
 
-        for(String val : valueSet) {
+        for (String val : valueSet) {
             returnList.add(val);
         }
 
@@ -237,19 +298,18 @@ public class AppSearch {
 
     }
 
-    private static String getFilterClause(String fieldName , ArrayList<String> valueList) {
+    private static String getFilterClause(String fieldName, ArrayList<String> valueList) {
         String filter = "";
-       
+
         filter = filter + "@" + fieldName + ":{";
 
         String valueStr = "";
 
-        for(int v = 0; v < valueList.size(); v++) {
-                valueStr = valueStr + valueList.get(v) + ((v < (valueList.size() -1)) ? "|" : "");
+        for (int v = 0; v < valueList.size(); v++) {
+            valueStr = valueStr + valueList.get(v) + ((v < (valueList.size() - 1)) ? "|" : "");
         }
 
-        filter = filter + valueStr + "}"; 
-
+        filter = filter + valueStr + "}";
 
         return filter;
     }
@@ -257,7 +317,7 @@ public class AppSearch {
     static String getExecutionTime(long startTime, long endTime) {
         long diff = endTime - startTime;
 
-        long sec = Math.floorDiv(diff,1000l);
+        long sec = Math.floorDiv(diff, 1000l);
         long msec = diff % 1000l;
 
         return "" + sec + " s : " + msec + " ms";

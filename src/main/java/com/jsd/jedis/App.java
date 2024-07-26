@@ -67,6 +67,7 @@ public class App {
         //disable check for self signed certs when using TLS
         disableCertValidaton();
 
+
         RedisDataLoader redisDataLoader = new RedisDataLoader("./config.properties");
 
         String filePath = "C:/Users/Jay Datsur/OneDrive/Tech/Redis/DataSets";
