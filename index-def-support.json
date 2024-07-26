@@ -1,6 +1,6 @@
 {
 	"type": "JSON",
-	"prefix": "support:tickets",
+	"prefix": "support:tickets:",
 	"schema": [
 		{
 			"field": "$.Description",

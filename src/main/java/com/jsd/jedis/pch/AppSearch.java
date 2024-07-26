@@ -134,7 +134,7 @@ public class AppSearch {
             }
 
             Query q = new Query(queryStr);
-            q.dialect(4);
+            q.dialect(Integer.parseInt(config.getProperty("query.dialect", "1")));
             q.limit(0, Integer.parseInt(config.getProperty("query.record.limit", "10")));
             
 
