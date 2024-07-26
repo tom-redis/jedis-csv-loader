@@ -56,7 +56,7 @@ public class AppSearch {
 
         if ("y".equalsIgnoreCase(loadData)) {
 
-            String prefix = config.getProperty("key.prefix");
+            String prefix = config.getProperty("data.key.prefix");
 
             // DROP the INDEX
             indexFactory.dropIndex(indexName);
@@ -75,25 +75,25 @@ public class AppSearch {
             JSONArray surveyArray = processRecords(bodyField); 
 
             
-            int numRecords = 1000000;
+            int numRecords = Integer.parseInt(config.getProperty("data.record.limit", "0"));
             int counter = 0;
 
             //LOAD DATA
             for (int i = 0; i < surveyArray.length(); i++) {
                 JSONObject surveyObj = (JSONObject) surveyArray.get(i);
                 jedisPipeline.jsonSet(
-                        config.getProperty("key.prefix") + counter + "-" + surveyObj.getString("survey_id"),
+                        config.getProperty("data.key.prefix") + counter + "-" + surveyObj.getString("survey_id"),
                         surveyObj);
                 counter++;
             }
 
-            // REPLICATE RECORDS to get a Larger Data Set
+            // REPLICATE RECORDS to get a Larger Data Set for POC purposes only
             while (counter <= numRecords) {
                 for (int i = 0; i < surveyArray.length(); i++) {
                     JSONObject surveyObj = (JSONObject) surveyArray.get(i);
                     surveyObj.put("is_live", "false");
                     jedisPipeline.jsonSet(
-                            config.getProperty("key.prefix") +  counter + "-" + surveyObj.getString("survey_id"),
+                            config.getProperty("data.key.prefix") +  counter + "-" + surveyObj.getString("survey_id"),
                             surveyObj);
                     counter++;
                 }
