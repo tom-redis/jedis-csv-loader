@@ -1,3 +1,8 @@
+
+<h2>This Repo Contains 2 Utility Applications</h2>
+
+
+<b>Redis Data Loader</b>
 This app uses Jedis (Jedis Pipelining) to load data from a CSV file into Redis Hash or JSON objects.
 
 It can add 1 level of nesting in JSON, to support 1 to Many use cases. e.g. Order Header > Order Line Items
