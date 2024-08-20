@@ -2,7 +2,7 @@ This app uses Jedis (Jedis Pipelining) to load data from a CSV file into Redis H
 
 It can add 1 level of nesting in JSON, to support 1 to Many use cases. e.g. Order Header > Order Line Items
 
-See sample file Sunscriptions-10.csv
+See sample file Subscriptions-10.csv
 
 Note: This code is for demo / learning purposes only. Use the RIOT utility to load data into Redis.
 
