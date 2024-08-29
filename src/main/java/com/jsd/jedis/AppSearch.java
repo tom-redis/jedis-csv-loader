@@ -33,8 +33,18 @@ public class AppSearch {
 
     public static void main(String[] args) throws Exception {
 
+        Scanner s = new Scanner(System.in);
+
         // set the config file
         String configFile = "./config.properties";
+
+        System.out.print("\nEnter the config file path (Defaults to ./config.properties): ");
+        String configFile1  = s.nextLine();
+
+        if(!"".equals(configFile1)) {
+            configFile = configFile1;
+        }
+
 
         Properties config = new Properties();
         config.load(new FileInputStream(configFile));
@@ -47,8 +57,8 @@ public class AppSearch {
 
         RedisIndexFactory indexFactory = new RedisIndexFactory(configFile);
 
-        Scanner s = new Scanner(System.in);
-        System.out.println("\nWould you like to Reload Data for: " + indexName + " ? (y/n)");
+
+        System.out.print("\nWould you like to Reload Data for: " + indexName + " ? (y/n) ");
 
         String loadData = s.nextLine();
 
@@ -104,10 +114,11 @@ public class AppSearch {
                 jedisPipeline.sync();
                 SearchResult searchResult = res0.get();
 
-                //dialect 4 stops execution once the return row count is reached, for optimization
+                //getTotalResults() not to be used for dialect 4 as it stops execution once the return row count is reached (for optimization)
                 if (queryDialect != 4) {
                     System.out.println("Number of results: " + searchResult.getTotalResults());
                 }
+
 
                 List<Document> docs = searchResult.getDocuments();
 
@@ -116,6 +127,7 @@ public class AppSearch {
 
                     JSONObject obj = null;
 
+                    //Dialect 4 Returns a differnt Document Structure
                     if (queryDialect == 4) {
                         JSONArray arrObj = new JSONArray((String) doc.get("$"));
                         obj = arrObj.getJSONObject(0);
@@ -170,6 +182,10 @@ public class AppSearch {
 
         for (String type : new String[] { "TEXT", "TAG", "NUMERIC" }) {
             ArrayList<String> fl = fieldMap.get(type);
+
+            if(fl == null) {
+                continue;
+            }
 
             schemaString = schemaString + type + ": ";
 

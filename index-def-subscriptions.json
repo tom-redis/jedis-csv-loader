@@ -1,0 +1,42 @@
+{
+	"type": "JSON",
+	"prefix": "subscriptions:",
+	"schema": [
+		{
+			"field": "$.SubscriberID",
+			"alias": "SubscriberID",
+			"type": "TAG",
+			"sortable": true
+		},
+		{
+			"field": "$.SubscriberSSN",
+			"alias": "SubscriberSSN",
+			"type": "TAG",
+			"sortable": true
+		},
+		{
+			"field": "$.SubscriberBalAmount1",
+			"alias": "SubscriberBalAmount1",
+			"type": "NUMERIC",
+			"sortable": true
+		},
+		{
+			"field": "$.dependants[*].DependantID",
+			"alias": "DependantID",
+			"type": "TAG",
+			"sortable": true
+		},
+		{
+			"field": "$.dependants[*].DependantSSN",
+			"alias": "DependantSSN",
+			"type": "TAG",
+			"sortable": true
+		},
+		{
+			"field": "$.dependants[*].DependantBalAmount1",
+			"alias": "DependantBalAmount1",
+			"type": "NUMERIC",
+			"sortable": true
+		}
+	]
+}
