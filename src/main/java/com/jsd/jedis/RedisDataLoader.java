@@ -26,13 +26,39 @@ public class RedisDataLoader {
         config = new Properties();
         config.load(new FileInputStream(configFile));
 
-        this.jedisPooled = new JedisPooled(config.getProperty("redis.host", "localhost"),
-                Integer.parseInt(config.getProperty("redis.port", "6379")),
-                config.getProperty("redis.user", "default"), config.getProperty("redis.password"));
+
+
+        this.jedisPooled = new JedisPooled(loadProperty("redis.host"), Integer.parseInt(loadProperty("redis.port")), 
+                                            loadProperty("redis.user"), loadProperty("redis.password"));
 
         this.jedisPipeline = this.jedisPooled.pipelined();
 
         System.out.println("[RedisDataLoader] Connection Successful PING >> " + jedisPooled.ping());
+    }
+
+    public String loadProperty(String property) {
+        String prop = null;
+        
+        String propEnv = System.getenv(config.getProperty(property));
+
+        if(propEnv != null) {
+            prop = propEnv;
+        }
+        else if("redis.host".equalsIgnoreCase(property)) {
+            prop = config.getProperty(property, "localhost");
+            
+        }
+        else if("redis.port".equalsIgnoreCase(property)) {
+            prop = config.getProperty(property, "6379");
+        }
+        else if("redis.user".equalsIgnoreCase(property)) {
+            prop = config.getProperty(property, "default");
+        }
+        else {
+            prop = config.getProperty(property);
+        }
+        
+        return prop;
     }
 
     public boolean testPool() {

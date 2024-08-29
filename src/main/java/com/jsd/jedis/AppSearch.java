@@ -33,6 +33,7 @@ public class AppSearch {
 
     public static void main(String[] args) throws Exception {
 
+
         Scanner s = new Scanner(System.in);
 
         // set the config file

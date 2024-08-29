@@ -24,6 +24,7 @@ public class RedisIndexFactory {
 
     private Pipeline jedisPipeline;
     private JedisPooled jedisPooled;
+    private Properties config;
 
     public RedisIndexFactory(Pipeline jedisPipeline, JedisPooled jedisPooled) throws Exception {
         this.jedisPipeline = jedisPipeline;
@@ -31,12 +32,12 @@ public class RedisIndexFactory {
     }
 
     public RedisIndexFactory(String configFile) throws Exception {
-        Properties config = new Properties();
+        this.config = new Properties();
         config.load(new FileInputStream(configFile));
 
-        this.jedisPooled = new JedisPooled(config.getProperty("redis.host", "localhost"),
-                Integer.parseInt(config.getProperty("redis.port", "6379")),
-                config.getProperty("redis.user", "default"), config.getProperty("redis.password"));
+        
+        this.jedisPooled = new JedisPooled(loadProperty("redis.host"), Integer.parseInt(loadProperty("redis.port")),
+                        loadProperty("redis.user"), loadProperty("redis.password"));
 
         this.jedisPipeline = this.jedisPooled.pipelined();
 
@@ -147,13 +148,38 @@ public class RedisIndexFactory {
                     Thread.sleep(1000l);
                 }
 
-                System.err.println("[RedisIndexFactory] Index Completed");;
+                System.err.println("[RedisIndexFactory] Index Completed");
             }
             catch(Exception e) {}
             }
         };
 
         anonymousThread.start(); 
+    }
+
+    public String loadProperty(String property) {
+        String prop = null;
+        
+        String propEnv = System.getenv(config.getProperty(property));
+
+        if(propEnv != null) {
+            prop = propEnv;
+        }
+        else if("redis.host".equalsIgnoreCase(property)) {
+            prop = config.getProperty(property, "localhost");
+            
+        }
+        else if("redis.port".equalsIgnoreCase(property)) {
+            prop = config.getProperty(property, "6379");
+        }
+        else if("redis.user".equalsIgnoreCase(property)) {
+            prop = config.getProperty(property, "default");
+        }
+        else {
+            prop = config.getProperty(property);
+        }
+        
+        return prop;
     }
 
 
