@@ -16,19 +16,6 @@ To run the application.
 
 #1 Download the repository from GIT (this uses maven as the build tool)
 
-#2 Create config.properties with connection details (use sample-config.properties as the template)
+#2 Create a .properties with connection details (use config.properties as the template)
 
-redis.host=localhost
-redis.port=6379
-redis.user=default
-redis.password=<password>
-data.file=./Subscriptions-10.csv.csv
-data.record.limit=0
-data.key.prefix=subscriptions:
-data.header.field=SubscriberID
-data.detail.field=DependantUniqueID
-data.detail.attr.name=dependants
-
-#3 Edit the App.java specify the path the csv file you wish to load.
-
-#4 Execute App.java
+#3 Execute App.java
