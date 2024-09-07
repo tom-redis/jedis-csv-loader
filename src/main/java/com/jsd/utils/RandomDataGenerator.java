@@ -33,8 +33,9 @@ public class RandomDataGenerator {
             if("TEXT".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
             }
-            else if("ID".equalsIgnoreCase(fieldObj.getString("type"))) {
+            else if("UID".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + counter++);
+
             }
             else if("NUM".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), getInt(fieldObj.getJSONArray("options")));
@@ -50,6 +51,7 @@ public class RandomDataGenerator {
 
         return recordObj;
     }
+
 
     private JSONObject getObject(JSONArray arr) {
         return arr.getJSONObject(ThreadLocalRandom.current().nextInt(0, arr.length()));

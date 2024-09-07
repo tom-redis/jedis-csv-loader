@@ -3,7 +3,7 @@
 		"schema": [
 			{
 				"field": "OrderID",
-				"type": "ID",
+				"type": "UID",
 				"prefix": "INV-"
 			},
 			{

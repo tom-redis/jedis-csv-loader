@@ -262,6 +262,23 @@ public class RedisDataLoader {
 
     }
 
+    public void loadJSON(String keyPrefix, RandomDataGenerator dataGenerator, int numRows) throws Exception {
+        System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
+
+        String sysTime = "" + System.currentTimeMillis();
+
+        int r = 0;
+
+        for(r = 0; r < numRows; r++) {
+            jedisPipeline.jsonSet(keyPrefix + r + "-" + sysTime, dataGenerator.generateRecord("header"));
+        }
+
+        jedisPipeline.sync();
+
+        System.out.println("[RedisDataLoader] Loaded " + r  + " record objects");
+
+    }
+
     public int deleteKeys(String keyPrefix) {
 
         ScanParams scanParams = new ScanParams().count(10000).match(keyPrefix + "*"); // Set the chunk size
