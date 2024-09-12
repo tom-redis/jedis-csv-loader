@@ -263,7 +263,7 @@ public class RedisDataLoader {
     }
 
     public void loadJSON(String keyPrefix, RandomDataGenerator dataGenerator, int numRows) throws Exception {
-        System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
+        //System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
 
         String sysTime = "" + System.currentTimeMillis();
 
@@ -275,7 +275,7 @@ public class RedisDataLoader {
 
         jedisPipeline.sync();
 
-        System.out.println("[RedisDataLoader] Loaded " + r  + " record objects");
+        //System.out.println("[RedisDataLoader] Loaded " + r  + " record objects");
 
     }
 

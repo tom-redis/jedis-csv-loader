@@ -19,7 +19,7 @@ import redis.clients.jedis.JedisPooled;
  */
 public class AppActiveActive {
 
-    public void loadData(String configFile, RedisDataLoader redisDataLoader) throws Exception {
+    public void loadData(String configFile, RedisDataLoader redisDataLoader, String mode) throws Exception {
 
         Thread t = new Thread() {
             public void run() {
@@ -36,7 +36,19 @@ public class AppActiveActive {
                     int numRecords = Integer.parseInt(config.getProperty("data.record.limit"));
 
                     RandomDataGenerator dataGenerator = new RandomDataGenerator(filePath);
-                    redisDataLoader.loadJSON(keyPrefix, dataGenerator, numRecords);
+
+                    if("burst".equalsIgnoreCase(mode)) {
+                        keyPrefix = config.getProperty("data.key.prefix.burst");
+
+                        for(int i = 0; i < 900; i++) {
+                            redisDataLoader.loadJSON(keyPrefix, dataGenerator, 500);
+                            Thread.sleep(1000l);
+                        }
+                    }
+                    else {
+                        redisDataLoader.loadJSON(keyPrefix, dataGenerator, numRecords);
+                    }
+
                     redisDataLoader.close();
 
                 } catch (Exception e) {
@@ -54,7 +66,7 @@ public class AppActiveActive {
         
 
         try {
-            System.err.print("Select an initial value: ");
+            System.err.print("[Counter] Select an initial value: ");
             
             JedisPooled jedisPool1 =  redisDataLoader1.getJedisPooled();
             JedisPooled jedisPool2 =  redisDataLoader2.getJedisPooled();
@@ -63,7 +75,7 @@ public class AppActiveActive {
                        
             jedisPool1.set(key, "" + Long.parseLong(scanner.nextLine()));
 
-            for(int i = 0; i < 5; i++) {
+            for(int i = 0; i < 3; i++) {
                 long incr = ThreadLocalRandom.current().nextLong(1l, 5l);
                 System.out.println("Cluster1 Incrementing the counter by " + incr);
                 jedisPool1.incrBy(key, incr);
@@ -86,23 +98,23 @@ public class AppActiveActive {
             key = "aa:sorted:set";
 
             jedisPool1.del(key);
-            System.err.print("\nEnter a list of values in Cluster 1: ");
+            System.err.print("\n[Sorted Set] Enter a list of values in Cluster 1: ");
             String[] values = scanner.nextLine().split(",");
             for(String item : values) {
                 jedisPool1.zincrby(key, 1.0, item);
             }
 
-            System.err.print("Enter a list of values in Cluster 2: ");
+            System.err.print("[Sorted Set] Enter a list of values in Cluster 2: ");
             values = scanner.nextLine().split(",");
             for(String item : values) {
                 jedisPool2.zincrby(key, 1.0, item);
             }
 
-            Thread.sleep(250l);
+            Thread.sleep(200l);
 
             List<String> ss = jedisPool1.zrevrangeByScore(key, Double.MAX_VALUE, 0.0);
 
-            System.err.println("Merged Values of Sorted Set by Count : ");
+            System.err.println("[Sorted Set] Merged Values : ");
 
 
             for(String s : ss) {
@@ -190,22 +202,25 @@ public class AppActiveActive {
 
         Scanner scanner = new Scanner(System.in);
 
-        System.err.println("Select a test option:\n[1] Simple Replication\n[2] Active Active Replication\n[3] Conflict Resolution");
+        System.err.println("Select a test option:\n[1] Simple Replication\n[2] Active Active Replication\n[3] Conflict Resolution\n[4] Continuous Ingestion");
 
         String option = scanner.nextLine();
 
         if("1".equals(option)) {
-            aa.loadData(configFile1, redisDataLoader1);
+            aa.loadData(configFile1, redisDataLoader1, "batch");
             aa.watchClusters(configFile1, configFile2, redisDataLoader11, redisDataLoader22); 
         }
         else if("2".equals(option))  {
-            aa.loadData(configFile1, redisDataLoader1);
-            aa.loadData(configFile2, redisDataLoader2);
+            aa.loadData(configFile1, redisDataLoader1, "batch");
+            aa.loadData(configFile2, redisDataLoader2, "batch");
             aa.watchClusters(configFile1, configFile2, redisDataLoader11, redisDataLoader22);
         }
         else if("3".equals(option))  {
 
             aa.conflictResolution(scanner, redisDataLoader1, redisDataLoader2);
+        }
+        else if("4".equals(option)) {
+            aa.loadData(configFile1, redisDataLoader1, "burst");
         }
 
         scanner.close();

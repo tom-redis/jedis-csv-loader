@@ -23,7 +23,15 @@ import redis.clients.jedis.Response;
 
 import redis.clients.jedis.search.Query;
 import redis.clients.jedis.search.SearchResult;
+import redis.clients.jedis.search.aggr.AggregationBuilder;
+import redis.clients.jedis.search.aggr.AggregationResult;
+import redis.clients.jedis.search.aggr.Reducers;
+import redis.clients.jedis.search.aggr.Row;
+import redis.clients.jedis.search.aggr.SortedField;
 import redis.clients.jedis.search.Document;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Redis Search Client using Jedis
@@ -33,19 +41,17 @@ public class AppSearch {
 
     public static void main(String[] args) throws Exception {
 
-
         Scanner s = new Scanner(System.in);
 
         // set the config file
         String configFile = "./config.properties";
 
         System.out.print("\nEnter the config file path (Defaults to ./config.properties): ");
-        String configFile1  = s.nextLine();
+        String configFile1 = s.nextLine();
 
-        if(!"".equals(configFile1)) {
+        if (!"".equals(configFile1)) {
             configFile = configFile1;
         }
-
 
         Properties config = new Properties();
         config.load(new FileInputStream(configFile));
@@ -57,7 +63,6 @@ public class AppSearch {
         String indexDefFile = config.getProperty("index.def.file");
 
         RedisIndexFactory indexFactory = new RedisIndexFactory(configFile);
-
 
         System.out.print("\nWould you like to Reload Data for: " + indexName + " ? (y/n) ");
 
@@ -84,6 +89,14 @@ public class AppSearch {
             // CREATE the INDEX
             indexFactory.createIndex(indexName, indexDefFile);
 
+        } else {
+            System.out.print("\nWould you like to Create the index: " + indexName + " ? (y/n) ");
+            String createIndex = s.nextLine();
+
+            if ("y".equalsIgnoreCase(createIndex)) {
+                indexFactory.dropIndex(indexName);
+                indexFactory.createIndex(indexName, indexDefFile);
+            }
         }
 
         // PRINT INDEX SCHEMA FOR REF
@@ -102,33 +115,40 @@ public class AppSearch {
                 break;
             }
 
-            int queryDialect = Integer.parseInt(config.getProperty("query.dialect", "1"));
-
-            Query q = new Query(queryStr);
-            q.dialect(queryDialect);
-            q.limit(0, Integer.parseInt(config.getProperty("query.record.limit", "10")));
-
             try {
+                if (queryStr.startsWith("aggr")) {
+                    executeAggrQuery(queryStr, config, jedisPipeline);
+                    continue;
+                }
+
+                int queryDialect = Integer.parseInt(config.getProperty("query.dialect", "1"));
+
+                Query q = new Query(queryStr);
+                q.dialect(queryDialect);
+                q.limit(0, Integer.parseInt(config.getProperty("query.record.limit", "10")));
 
                 // EXECUTE QUERY
                 Response<SearchResult> res0 = jedisPipeline.ftSearch(indexName, q);
                 jedisPipeline.sync();
                 SearchResult searchResult = res0.get();
 
-                //getTotalResults() not to be used for dialect 4 as it stops execution once the return row count is reached (for optimization)
+                // getTotalResults() not to be used for dialect 4 as it stops execution once the
+                // return row count is reached (for optimization)
                 if (queryDialect != 4) {
                     System.out.println("Number of results: " + searchResult.getTotalResults());
                 }
-
 
                 List<Document> docs = searchResult.getDocuments();
 
                 // loop through the results
                 for (Document doc : docs) {
 
+                    // print the keys for each result object
+                    System.out.print(doc.getId() + " |");
+
                     JSONObject obj = null;
 
-                    //Dialect 4 Returns a differnt Document Structure
+                    // Dialect 4 Returns a different Document Structure
                     if (queryDialect == 4) {
                         JSONArray arrObj = new JSONArray((String) doc.get("$"));
                         obj = arrObj.getJSONObject(0);
@@ -136,11 +156,10 @@ public class AppSearch {
 
                     } else {
                         obj = new JSONObject((String) doc.get("$"));
+                        System.out.println(obj);
                         obj.isEmpty();
                     }
 
-                    // print the keys for each result object
-                    System.out.print(doc.getId() + " |");
                 }
 
             } catch (Exception e) {
@@ -158,6 +177,49 @@ public class AppSearch {
 
         s.close();
         redisDataLoader.close();
+
+    }
+
+    public static void executeAggrQuery(String queryStr, Properties config, Pipeline jedisPipeline) throws Exception {
+
+        String queryStr1 = queryStr;
+
+        String filterString = "*";
+
+        if (queryStr1.lastIndexOf(" where ") > -1) {
+            filterString = queryStr1.substring(queryStr1.lastIndexOf(" where ") + 7);
+            queryStr1 = queryStr1.substring(0, queryStr1.lastIndexOf(" where "));
+        }
+
+        AggregationBuilder aggr = new AggregationBuilder(filterString);
+
+        String regex = "\\w+\\s+(Top \\d+)\\s+(\\w+)\\s+by\\s+(\\w+)";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(queryStr1);
+
+        if (matcher.find()) {
+            if ("count".equalsIgnoreCase(matcher.group(3))) {
+                aggr.groupBy("@" + matcher.group(2), Reducers.count().as("Count"));
+
+            } else {
+                aggr.groupBy("@" + matcher.group(2), Reducers.sum("@" + matcher.group(3)).as(matcher.group(3)));
+            }
+
+            aggr.sortBy(SortedField.desc("@" + matcher.group(3)));
+            aggr.limit(0, Integer.parseInt(matcher.group(1).substring(4)));
+
+        }
+
+        Response<AggregationResult> response = jedisPipeline.ftAggregate("idx:trades", aggr);
+        jedisPipeline.sync();
+
+        AggregationResult result = response.get();
+
+        List<Row> rows = result.getRows();
+
+        for (Row row : rows) {
+            System.out.println(row.toString());
+        }
 
     }
 
@@ -184,7 +246,7 @@ public class AppSearch {
         for (String type : new String[] { "TEXT", "TAG", "NUMERIC" }) {
             ArrayList<String> fl = fieldMap.get(type);
 
-            if(fl == null) {
+            if (fl == null) {
                 continue;
             }
 
