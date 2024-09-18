@@ -117,7 +117,7 @@ public class AppSearch {
 
             try {
                 if (queryStr.startsWith("aggr")) {
-                    executeAggrQuery(queryStr, config, jedisPipeline);
+                    executeAggrQuery(queryStr, indexName, jedisPipeline);
                     continue;
                 }
 
@@ -180,7 +180,7 @@ public class AppSearch {
 
     }
 
-    public static void executeAggrQuery(String queryStr, Properties config, Pipeline jedisPipeline) throws Exception {
+    public static void executeAggrQuery(String queryStr, String indexName, Pipeline jedisPipeline) throws Exception {
 
         String queryStr1 = queryStr;
 
@@ -210,7 +210,7 @@ public class AppSearch {
 
         }
 
-        Response<AggregationResult> response = jedisPipeline.ftAggregate("idx:trades", aggr);
+        Response<AggregationResult> response = jedisPipeline.ftAggregate(indexName, aggr);
         jedisPipeline.sync();
 
         AggregationResult result = response.get();
