@@ -181,6 +181,23 @@ public class RedisDataLoader {
         }
     }
 
+    public void loadHash(String keyPrefix, RandomDataGenerator dataGenerator, int numRows) throws Exception {
+        //System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
+
+        String sysTime = "" + System.currentTimeMillis();
+
+        int r = 0;
+
+        for(r = 0; r < numRows; r++) {
+            jedisPipeline.hset(keyPrefix + r + "-" + sysTime, dataGenerator.generateHashRecord("header"));
+        }
+
+        jedisPipeline.sync();
+
+        //System.out.println("[RedisDataLoader] Loaded " + r  + " record objects");
+
+    }
+
     /*
      * Loads a CSV file into JSON objects, with upto 1 level of nesting.
      * It assumes the dataset is sorted by the headerID and all columns on and after

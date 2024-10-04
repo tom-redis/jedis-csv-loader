@@ -1,6 +1,7 @@
 package com.jsd.utils;
 
 import java.io.FileInputStream;
+import java.util.HashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.json.JSONArray;
@@ -20,6 +21,33 @@ public class RandomDataGenerator {
         templateObj = new JSONObject(tokener);
     } 
 
+      
+
+    public HashMap<String, String> generateHashRecord(String objName) {
+ 
+        HashMap<String, String> recordObj = new HashMap<String, String>();
+
+        JSONObject jobj = templateObj.getJSONObject(objName);
+
+        JSONArray schema = jobj.getJSONArray("schema");
+
+        for(int f = 0; f < schema.length(); f++) {
+            JSONObject fieldObj = schema.getJSONObject(f);
+
+            if("TEXT".equalsIgnoreCase(fieldObj.getString("type"))) {
+                recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
+            }
+            else if("UID".equalsIgnoreCase(fieldObj.getString("type"))) {
+                recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + counter++);
+            }
+            else if("NUM".equalsIgnoreCase(fieldObj.getString("type"))) {
+                recordObj.put(fieldObj.getString("field"),  "" + getInt(fieldObj.getJSONArray("options")));
+            }
+        }
+
+        return recordObj;
+    }
+
     public JSONObject generateRecord(String objName) {
         JSONObject recordObj = new JSONObject();
 
@@ -35,7 +63,6 @@ public class RandomDataGenerator {
             }
             else if("UID".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + counter++);
-
             }
             else if("NUM".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), getInt(fieldObj.getJSONArray("options")));
@@ -78,9 +105,9 @@ public class RandomDataGenerator {
 
 
     public static void main(String[] args) throws Exception {
-        RandomDataGenerator gen = new RandomDataGenerator("./data-template-orders.json");
+        RandomDataGenerator gen = new RandomDataGenerator("./data-template-stock-trades.json");
         for(int i = 0; i < 2; i++) {
-            System.out.println(gen.generateRecord("header").toString(4));
+            System.out.println(gen.generateRecord("header").toString());
         }
     }
 

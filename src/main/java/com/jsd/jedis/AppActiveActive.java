@@ -19,7 +19,7 @@ import redis.clients.jedis.JedisPooled;
  */
 public class AppActiveActive {
 
-    public void loadData(String configFile, RedisDataLoader redisDataLoader, String mode) throws Exception {
+    public void loadData(String configFile, RedisDataLoader redisDataLoader, String mode, String objType) throws Exception {
 
         Thread t = new Thread() {
             public void run() {
@@ -41,12 +41,24 @@ public class AppActiveActive {
                         keyPrefix = config.getProperty("data.key.prefix.burst");
 
                         for(int i = 0; i < 900; i++) {
-                            redisDataLoader.loadJSON(keyPrefix, dataGenerator, 500);
+                            if("JSON".equalsIgnoreCase(objType)) {
+                                redisDataLoader.loadJSON(keyPrefix, dataGenerator, 500);
+                            }
+                            else {
+                                redisDataLoader.loadHash(keyPrefix, dataGenerator, 500);
+                            }
+                            
                             Thread.sleep(1000l);
                         }
                     }
                     else {
-                        redisDataLoader.loadJSON(keyPrefix, dataGenerator, numRecords);
+                        if("JSON".equalsIgnoreCase(objType)) {
+                            redisDataLoader.loadJSON(keyPrefix, dataGenerator, numRecords);
+                        }
+                        else {
+                            redisDataLoader.loadHash(keyPrefix, dataGenerator, numRecords);
+                        }
+                        
                     }
 
                     redisDataLoader.close();
@@ -206,13 +218,23 @@ public class AppActiveActive {
 
         String option = scanner.nextLine();
 
+        System.err.println("Object Type [JSON/HASH] (default JSON): ");
+
+        String objectType = scanner.nextLine();
+
+        if("".equals(objectType)) {
+            objectType = "JSON";
+        }
+
+
+
         if("1".equals(option)) {
-            aa.loadData(configFile1, redisDataLoader1, "batch");
+            aa.loadData(configFile1, redisDataLoader1, "batch", objectType);
             aa.watchClusters(configFile1, configFile2, redisDataLoader11, redisDataLoader22); 
         }
         else if("2".equals(option))  {
-            aa.loadData(configFile1, redisDataLoader1, "batch");
-            aa.loadData(configFile2, redisDataLoader2, "batch");
+            aa.loadData(configFile1, redisDataLoader1, "batch", objectType);
+            aa.loadData(configFile2, redisDataLoader2, "batch", objectType);
             aa.watchClusters(configFile1, configFile2, redisDataLoader11, redisDataLoader22);
         }
         else if("3".equals(option))  {
@@ -220,7 +242,7 @@ public class AppActiveActive {
             aa.conflictResolution(scanner, redisDataLoader1, redisDataLoader2);
         }
         else if("4".equals(option)) {
-            aa.loadData(configFile1, redisDataLoader1, "burst");
+            aa.loadData(configFile1, redisDataLoader1, "burst", objectType);
         }
 
         scanner.close();
