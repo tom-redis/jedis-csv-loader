@@ -6,18 +6,13 @@ import java.util.Scanner;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+
+
 import com.jsd.utils.*;
 
-import redis.clients.jedis.DefaultJedisClientConfig;
-import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.JedisClientConfig;
 import redis.clients.jedis.JedisPooled;
-import redis.clients.jedis.MultiClusterClientConfig;
-import redis.clients.jedis.MultiClusterClientConfig.ClusterConfig;
 import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.PipelineBase;
-import redis.clients.jedis.UnifiedJedis;
-import redis.clients.jedis.providers.MultiClusterPooledConnectionProvider;
+
 
 /**
  * Simple Jedis Client
@@ -59,13 +54,16 @@ public class AppActiveActive {
                     RandomDataGenerator dataGenerator = new RandomDataGenerator(filePath);
                     keyPrefix = config1.getProperty("data.key.prefix.burst");
 
+                    int numBatches = 100;
+                    int batchSize = 1000;
+
                     
-                    for (int batch = 0; batch < 900; batch++) {
+                    for (int batch = 0; batch < numBatches; batch++) {
                         String sysTime = "" + System.currentTimeMillis();
 
                         try {
-                            for (int r = 0; r < 500; r++) {
-                                pipeline.jsonSet(keyPrefix + "Batch-" + batch + ":Record-" + r, dataGenerator.generateRecord("header"));
+                            for (int r = 0; r < batchSize; r++) {
+                                pipeline.jsonSet("Batch-" + batch + ":Record-" + r, dataGenerator.generateRecord("header"));
                             }
                             pipeline.sync();
                         }
@@ -78,8 +76,10 @@ public class AppActiveActive {
                             pipeline = redisDataLoader.getJedisPipeline();
                         }
 
-                        Thread.sleep(3000l);
+                        Thread.sleep(1000l);
                     }
+
+                    System.out.println("[AppActiveActive] Successfully Written " + (numBatches * batchSize) + " Records");
 
                 } catch (Exception e) {
                     System.out.println("[AppActiveActive] Exception in writeFailover() for "
@@ -113,7 +113,7 @@ public class AppActiveActive {
                     if ("burst".equalsIgnoreCase(mode)) {
                         keyPrefix = config.getProperty("data.key.prefix.burst");
 
-                        for (int i = 0; i < 900; i++) {
+                        for (int i = 0; i < 10000; i++) {
                             if ("JSON".equalsIgnoreCase(objType)) {
                                 redisDataLoader.loadJSON(keyPrefix, dataGenerator, 500);
                             } else {
@@ -143,8 +143,7 @@ public class AppActiveActive {
         t.start();
     }
 
-    public void conflictResolution(Scanner scanner, RedisDataLoader redisDataLoader1,
-            RedisDataLoader redisDataLoader2) {
+    public void conflictResolution(Scanner scanner, RedisDataLoader redisDataLoader1, RedisDataLoader redisDataLoader2) {
 
         try {
             System.err.print("[Counter] Select an initial value: ");
@@ -304,6 +303,8 @@ public class AppActiveActive {
         t.start();
     }
 
+
+
     public static void main(String[] args) throws Exception {
 
         // set the config file
@@ -312,6 +313,7 @@ public class AppActiveActive {
 
         AppActiveActive aa = new AppActiveActive();
 
+
         RedisDataLoader redisDataLoader1 = null;
         RedisDataLoader redisDataLoader2 = null;
         RedisDataLoader redisDataLoader11 = null;
@@ -319,7 +321,7 @@ public class AppActiveActive {
 
         Scanner scanner = new Scanner(System.in);
 
-        System.err.print("Select a test option:\n[1] Simple Replication\n[2] Active Active Replication\n[3] Conflict Resolution\n[4] Continuous Ingestion\n[5] Replica Failover\n> ");
+        System.err.print("\nTest Cases:\n[1] Simple Replication\n[2] Active Active Replication\n[3] Conflict Resolution\n[4] Continuous Ingestion\n[5] Replica Failover\nSelect Test: ");
 
         String option = scanner.nextLine();
 
@@ -354,6 +356,8 @@ public class AppActiveActive {
         } else if ("3".equals(option)) {
 
             redisDataLoader1 = new RedisDataLoader(configFile1);
+            redisDataLoader2 = new RedisDataLoader(configFile2);
+
             aa.conflictResolution(scanner, redisDataLoader1, redisDataLoader2);
 
         } else if ("4".equals(option)) {
