@@ -156,7 +156,7 @@ public class AppSearch {
 
                     } else {
                         obj = new JSONObject((String) doc.get("$"));
-                        System.out.println(obj);
+                        //System.out.println(obj);
                         obj.isEmpty();
                     }
 
@@ -182,6 +182,11 @@ public class AppSearch {
 
     public static void executeAggrQuery(String queryStr, String indexName, Pipeline jedisPipeline) throws Exception {
 
+        // e.g 
+        //aggr Top 5 Customer by count
+        //aggr Top 3 Customer by sum Amount where @Product:{apple|orange}
+        //aggr show Top 5 Agent by Avg TalkTime
+
         String queryStr1 = queryStr;
 
         String filterString = "*";
@@ -193,32 +198,48 @@ public class AppSearch {
 
         AggregationBuilder aggr = new AggregationBuilder(filterString);
 
-        String regex = "\\w+\\s+(Top \\d+)\\s+(\\w+)\\s+by\\s+(\\w+)";
-        Pattern pattern = Pattern.compile(regex);
+        String regex = "\\w+\\s+(Top \\d+)\\s+(\\w+)\\s+by\\s+((avg|sum|count|)\\s*\\w*)";
+        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(queryStr1);
 
         if (matcher.find()) {
-            if ("count".equalsIgnoreCase(matcher.group(3))) {
-                aggr.groupBy("@" + matcher.group(2), Reducers.count().as("Count"));
+            String groupCol = matcher.group(2);
+            String aggrCol = matcher.group(3);
 
-            } else {
-                aggr.groupBy("@" + matcher.group(2), Reducers.sum("@" + matcher.group(3)).as(matcher.group(3)));
+ 
+            if ("count".equalsIgnoreCase(aggrCol)) {
+                aggrCol = "Count";
+                aggr.groupBy("@" + groupCol, Reducers.count().as("Count"));
+
+            } else if(aggrCol.toUpperCase().startsWith("AVG")) {
+
+                aggrCol= aggrCol.substring(4);
+                aggr.groupBy("@" + groupCol, Reducers.avg("@" + aggrCol).as(aggrCol));
+            }
+            else if(aggrCol.toUpperCase().startsWith("SUM")) {
+
+                aggrCol= aggrCol.substring(4);
+                aggr.groupBy("@" + groupCol, Reducers.sum("@" + aggrCol).as(aggrCol));
+            }
+            else {
+                aggr.groupBy("@" + groupCol, Reducers.sum("@" + aggrCol).as(aggrCol));
+                
             }
 
-            aggr.sortBy(SortedField.desc("@" + matcher.group(3)));
+            aggr.sortBy(SortedField.desc("@" + aggrCol));
             aggr.limit(0, Integer.parseInt(matcher.group(1).substring(4)));
 
-        }
+            Response<AggregationResult> response = jedisPipeline.ftAggregate(indexName, aggr);
+            jedisPipeline.sync();
+    
+            AggregationResult result = response.get();
+    
+            List<Row> rows = result.getRows();
+    
+            for (Row row : rows) {
+                System.out.println(row.toString());
+            }
 
-        Response<AggregationResult> response = jedisPipeline.ftAggregate(indexName, aggr);
-        jedisPipeline.sync();
-
-        AggregationResult result = response.get();
-
-        List<Row> rows = result.getRows();
-
-        for (Row row : rows) {
-            System.out.println(row.toString());
         }
 
     }
