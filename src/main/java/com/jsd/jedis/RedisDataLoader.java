@@ -1,14 +1,22 @@
 package com.jsd.jedis;
 
-import java.io.FileInputStream;
-import java.util.HashMap;
-import java.util.Properties;
-
-import org.json.JSONObject;
 
 import com.jsd.utils.*;
 
+import java.io.FileInputStream;
+import java.util.HashMap;
+import java.util.Properties;
+import java.util.List;
+
+import org.json.JSONObject;
+
 import redis.clients.jedis.*;
+import redis.clients.jedis.commands.ProtocolCommand;
+import redis.clients.jedis.csc.Cache;
+import redis.clients.jedis.csc.CacheConfig;
+import redis.clients.jedis.csc.CacheFactory;
+import redis.clients.jedis.csc.Cacheable;
+import redis.clients.jedis.csc.DefaultCacheable;
 import redis.clients.jedis.params.ScanParams;
 import redis.clients.jedis.resps.ScanResult;
 
@@ -21,15 +29,31 @@ public class RedisDataLoader {
     private Pipeline jedisPipeline;
     private JedisPooled jedisPooled;
     private Properties config;
+    private Cache clientCache;
 
     public RedisDataLoader(String configFile) throws Exception {
         config = new Properties();
         config.load(new FileInputStream(configFile));
 
+        if ("true".equalsIgnoreCase(config.getProperty("client.cache", "false"))) {
+            // enable client side caching
+            HostAndPort host = HostAndPort.from(loadProperty("redis.host") + ":" + loadProperty("redis.port"));
+            JedisClientConfig clientConfig = DefaultJedisClientConfig.builder().resp3()
+                    .user(loadProperty("redis.user"))
+                    .password(loadProperty("redis.password"))
+                    .build();
 
+            CacheConfig cacheConfig = getCacheConfig();
+            this.clientCache = CacheFactory.getCache(cacheConfig);
 
-        this.jedisPooled = new JedisPooled(loadProperty("redis.host"), Integer.parseInt(loadProperty("redis.port")), 
-                                            loadProperty("redis.user"), loadProperty("redis.password"));
+            this.jedisPooled = new JedisPooled(host, clientConfig, clientCache);
+
+            System.out.println("[RedisDataLoader] Client Side Caching Enabled");
+
+        } else {
+            this.jedisPooled = new JedisPooled(loadProperty("redis.host"), Integer.parseInt(loadProperty("redis.port")),
+                    loadProperty("redis.user"), loadProperty("redis.password"));
+        }
 
         this.jedisPipeline = this.jedisPooled.pipelined();
 
@@ -38,27 +62,46 @@ public class RedisDataLoader {
 
     public String loadProperty(String property) {
         String prop = null;
-        
+
         String propEnv = System.getenv(config.getProperty(property));
 
-        if(propEnv != null) {
+        if (propEnv != null) {
             prop = propEnv;
-        }
-        else if("redis.host".equalsIgnoreCase(property)) {
+        } else if ("redis.host".equalsIgnoreCase(property)) {
             prop = config.getProperty(property, "localhost");
-            
-        }
-        else if("redis.port".equalsIgnoreCase(property)) {
+
+        } else if ("redis.port".equalsIgnoreCase(property)) {
             prop = config.getProperty(property, "6379");
-        }
-        else if("redis.user".equalsIgnoreCase(property)) {
+        } else if ("redis.user".equalsIgnoreCase(property)) {
             prop = config.getProperty(property, "default");
-        }
-        else {
+        } else {
             prop = config.getProperty(property);
         }
-        
+
         return prop;
+    }
+
+    private  CacheConfig getCacheConfig() {
+
+        Cacheable cacheable = new DefaultCacheable() {
+            @Override
+            public boolean isCacheable(ProtocolCommand command, List<Object> keys) {
+                boolean doCache = false;
+
+                for (Object key : keys) {
+                    if(key.toString().startsWith(config.getProperty("client.cache.key.prefix","NA"))) {
+                        doCache = true;
+                    }
+                }
+
+                return (doCache && isDefaultCacheableCommand(command)) ;
+            }
+        };
+
+        // Create a cache with a maximum size of 10000 entries
+        return CacheConfig.builder()
+                .maxSize(Integer.parseInt(config.getProperty("client.cache.size", "10000")))
+                .cacheable(cacheable).build();
     }
 
     public boolean testPool() {
@@ -71,10 +114,9 @@ public class RedisDataLoader {
         } catch (Exception e) {
 
             System.out.println("[RedisDataLoader] Test Failed:\n" + e.toString());
-            System.out.println("[RedisDataLoader] Pool Status: Created: " + this.jedisPooled.getPool().getCreatedCount() + " Active: " +
-            this.jedisPooled.getPool().getNumActive() + " Idle: " + this.jedisPooled.getPool().getNumIdle());
-
-
+            System.out.println("[RedisDataLoader] Pool Status: Created: " + this.jedisPooled.getPool().getCreatedCount()
+                    + " Active: " +
+                    this.jedisPooled.getPool().getNumActive() + " Idle: " + this.jedisPooled.getPool().getNumIdle());
 
             isValid = false;
 
@@ -88,8 +130,9 @@ public class RedisDataLoader {
 
             this.jedisPooled.ping();
 
-            System.out.println("[RedisDataLoader] New Pool Created: " + this.jedisPooled.getPool().getCreatedCount() + " Active: " +
-            this.jedisPooled.getPool().getNumActive() + " Idle: " + this.jedisPooled.getPool().getNumIdle());
+            System.out.println("[RedisDataLoader] New Pool Created: " + this.jedisPooled.getPool().getCreatedCount()
+                    + " Active: " +
+                    this.jedisPooled.getPool().getNumActive() + " Idle: " + this.jedisPooled.getPool().getNumIdle());
         }
 
         return isValid;
@@ -102,6 +145,10 @@ public class RedisDataLoader {
     public JedisPooled getJedisPooled() {
         return this.jedisPooled;
     }
+
+    public Cache getClientCache() {
+        return this.clientCache;
+    }  
 
     public void close() {
         this.jedisPooled.close();
@@ -182,19 +229,19 @@ public class RedisDataLoader {
     }
 
     public void loadHash(String keyPrefix, RandomDataGenerator dataGenerator, int numRows) throws Exception {
-        //System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
+        // System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
 
         String sysTime = "" + System.currentTimeMillis();
 
         int r = 0;
 
-        for(r = 0; r < numRows; r++) {
-            jedisPipeline.hset(keyPrefix + r + "-" + sysTime, dataGenerator.generateHashRecord("header"));
+        for (r = 0; r < numRows; r++) {
+            jedisPipeline.hset(keyPrefix + sysTime + "-" + r, dataGenerator.generateHashRecord("header"));
         }
 
         jedisPipeline.sync();
 
-        //System.out.println("[RedisDataLoader] Loaded " + r  + " record objects");
+        // System.out.println("[RedisDataLoader] Loaded " + r + " record objects");
 
     }
 
@@ -280,19 +327,19 @@ public class RedisDataLoader {
     }
 
     public void loadJSON(String keyPrefix, RandomDataGenerator dataGenerator, int numRows) throws Exception {
-        //System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
+        // System.out.println("[RedisDataLoader] Loading Random Data " + keyPrefix);
 
         String sysTime = "" + System.currentTimeMillis();
 
         int r = 0;
 
-        for(r = 0; r < numRows; r++) {
-            jedisPipeline.jsonSet(keyPrefix + r + "-" + sysTime, dataGenerator.generateRecord("header"));
+        for (r = 0; r < numRows; r++) {
+            jedisPipeline.jsonSet(keyPrefix + sysTime + "-" + r, dataGenerator.generateRecord("header"));
         }
 
         jedisPipeline.sync();
 
-        //System.out.println("[RedisDataLoader] Loaded " + r  + " record objects");
+        // System.out.println("[RedisDataLoader] Loaded " + r + " record objects");
 
     }
 
