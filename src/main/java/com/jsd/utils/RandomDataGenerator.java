@@ -13,7 +13,7 @@ import org.json.JSONTokener;
 public class RandomDataGenerator {
 
     private JSONObject templateObj;
-    private int counter = 1;
+    private JSONObject uidCounters = new JSONObject();
 
     public RandomDataGenerator(String templateFile) throws Exception {
 
@@ -38,7 +38,7 @@ public class RandomDataGenerator {
                 recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
             }
             else if("UID".equalsIgnoreCase(fieldObj.getString("type"))) {
-                recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + counter++);
+                recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + getUID(objName + "-" + fieldObj.getString("field")));
             }
             else if("NUM".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"),  "" + getInt(fieldObj.getJSONArray("options")));
@@ -62,7 +62,7 @@ public class RandomDataGenerator {
                 recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
             }
             else if("UID".equalsIgnoreCase(fieldObj.getString("type"))) {
-                recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + counter++);
+                recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + getUID(objName + "-" + fieldObj.getString("field")));
             }
             else if("NUM".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), getInt(fieldObj.getJSONArray("options")));
@@ -90,6 +90,19 @@ public class RandomDataGenerator {
 
     private int getInt(JSONArray arr) {
         return ThreadLocalRandom.current().nextInt(arr.getInt(0), arr.getInt(1));
+    }
+
+    private int getUID(String key) {
+        int counter = 1;
+
+        try {
+            counter = this.uidCounters.getInt(key) + 1;
+        }
+        catch(Exception e) {}
+
+        this.uidCounters.put(key, counter);
+        
+        return counter;
     }
 
     private JSONArray getArray(String objName) {

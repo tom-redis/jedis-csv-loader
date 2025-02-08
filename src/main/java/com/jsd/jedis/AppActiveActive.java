@@ -49,18 +49,15 @@ public class AppActiveActive {
                     System.out.println("[AppActiveActive] Started Load " + config1.getProperty("cluster.name"));
 
                     String filePath = config1.getProperty("random.def.file");
-                    String keyPrefix = config1.getProperty("data.key.prefix");
                     
                     RandomDataGenerator dataGenerator = new RandomDataGenerator(filePath);
-                    keyPrefix = config1.getProperty("data.key.prefix.burst");
-
+                    
                     int numBatches = 100;
                     int batchSize = 1000;
 
                     
                     for (int batch = 0; batch < numBatches; batch++) {
-                        String sysTime = "" + System.currentTimeMillis();
-
+                        
                         try {
                             for (int r = 0; r < batchSize; r++) {
                                 pipeline.jsonSet("Batch-" + batch + ":Record-" + r, dataGenerator.generateRecord("header"));
