@@ -104,12 +104,16 @@ public class AppSearch {
 
         // START SEARCHING
 
+        String prevQueryStr = "";
+        String queryStr = "";
+        int resultCursor = 0;
+
         while (true) {
 
             System.out.println("\n[----------------------------------------------------------------------------]");
             System.out.println("Enter Search String :");
 
-            String queryStr = s.nextLine();
+            queryStr = s.nextLine();
 
             if ("bye|quit".indexOf(queryStr) > -1) {
                 break;
@@ -123,9 +127,22 @@ public class AppSearch {
 
                 int queryDialect = Integer.parseInt(config.getProperty("query.dialect", "1"));
 
-                Query q = new Query(queryStr);
+                String queryStrExec = "";
+
+                if("next".equalsIgnoreCase(queryStr)) {
+                    queryStrExec = prevQueryStr;
+                    resultCursor = resultCursor + 10;
+                }
+                else {
+                    queryStrExec = queryStr;
+                    prevQueryStr = queryStr;
+                    resultCursor = 0;
+                }
+
+            
+                Query q = new Query(queryStrExec);
                 q.dialect(queryDialect);
-                q.limit(0, Integer.parseInt(config.getProperty("query.record.limit", "10")));
+                q.limit(resultCursor, Integer.parseInt(config.getProperty("query.record.limit", "10")));
 
                 // EXECUTE QUERY
                 Response<SearchResult> res0 = jedisPipeline.ftSearch(indexName, q);
@@ -213,12 +230,12 @@ public class AppSearch {
 
             } else if(aggrCol.toUpperCase().startsWith("AVG")) {
 
-                aggrCol= aggrCol.substring(4);
+                aggrCol= aggrCol.substring(4).trim();
                 aggr.groupBy("@" + groupCol, Reducers.avg("@" + aggrCol).as(aggrCol));
             }
             else if(aggrCol.toUpperCase().startsWith("SUM")) {
 
-                aggrCol= aggrCol.substring(4);
+                aggrCol= aggrCol.substring(4).trim();
                 aggr.groupBy("@" + groupCol, Reducers.sum("@" + aggrCol).as(aggrCol));
             }
             else {
@@ -371,15 +388,26 @@ public class AppSearch {
 
         int toggle = ThreadLocalRandom.current().nextInt(0, 3);
 
+        int maxSize = 5;
+        int listSize = 0;
+
         if (toggle == 0) {
             randomList.add(superList.get(rand));
         } else if (toggle == 1) {
             for (int i = 0; i <= rand; i++) {
                 randomList.add(superList.get(i));
+
+                if(++listSize > maxSize) {
+                    break;
+                }
             }
         } else {
             for (int i = rand; i < superList.size(); i++) {
                 randomList.add(superList.get(i));
+
+                if(++listSize > maxSize) {
+                    break;
+                }
             }
         }
 
