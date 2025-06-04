@@ -1,0 +1,14 @@
+{
+    "id": "string", 
+    "productId": "string",
+    "managerName": "string",
+    "accountName": "string",
+    "accountNumber": "string",
+    "accountType": "string",
+    "settleQty": 0,
+    "tradeDateQty": 0,
+    "shortRate": 0,
+    "grossPnL": 0,
+    "sdNotional": 0,
+    "tdNotional": 0
+  }
