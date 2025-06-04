@@ -40,16 +40,15 @@ public class AppAutoScale {
 
     public static void main(String[] args) throws Exception {
 
-        Scanner s = new Scanner(System.in);
-
-        // set the config file
         String configFile = "./config.properties";
 
-        System.out.print("\nEnter the config file path (Defaults to ./config.properties): ");
-        String configFile1 = s.nextLine();
+        try (Scanner s = new Scanner(System.in)) {
+            System.out.print("\nEnter the config file path (Defaults to ./config.properties): ");
+            String configFile1 = s.nextLine();
 
-        if (!"".equals(configFile1)) {
-            configFile = configFile1;
+            if (!"".equals(configFile1)) {
+                configFile = configFile1;
+            }
         }
 
 

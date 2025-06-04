@@ -2,6 +2,7 @@ package com.jsd.utils;
 
 import java.io.FileInputStream;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.json.JSONArray;
@@ -31,11 +32,19 @@ public class RandomDataGenerator {
 
         JSONArray schema = jobj.getJSONArray("schema");
 
+        Random random = new Random(); // Create an instance of Random
+
         for(int f = 0; f < schema.length(); f++) {
             JSONObject fieldObj = schema.getJSONObject(f);
 
             if("TEXT".equalsIgnoreCase(fieldObj.getString("type"))) {
-                recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
+
+                if (getString(fieldObj.getJSONArray("options")).equalsIgnoreCase("special")) {
+                    int randomValue = random.nextInt(100); 
+                    recordObj.put(fieldObj.getString("field"), fieldObj.getString("field") + "-" + randomValue);
+                } else {
+                    recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
+                }
             }
             else if("UID".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + getUID(objName + "-" + fieldObj.getString("field")));
@@ -55,11 +64,19 @@ public class RandomDataGenerator {
 
         JSONArray schema = jobj.getJSONArray("schema");
 
+        Random random = new Random(); // Create an instance of Random
+
         for(int f = 0; f < schema.length(); f++) {
             JSONObject fieldObj = schema.getJSONObject(f);
 
             if("TEXT".equalsIgnoreCase(fieldObj.getString("type"))) {
-                recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
+
+                if (getString(fieldObj.getJSONArray("options")).equalsIgnoreCase("special")) {
+                    int randomValue = random.nextInt(100); 
+                    recordObj.put(fieldObj.getString("field"), fieldObj.getString("field") + "-" + randomValue);
+                } else {
+                    recordObj.put(fieldObj.getString("field"), getString(fieldObj.getJSONArray("options")));
+                }
             }
             else if("UID".equalsIgnoreCase(fieldObj.getString("type"))) {
                 recordObj.put(fieldObj.getString("field"), fieldObj.getString("prefix") + getUID(objName + "-" + fieldObj.getString("field")));

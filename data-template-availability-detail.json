@@ -9,8 +9,7 @@
       {
         "field": "mode",
         "type": "TEXT",
-        "prefix": "mode-",
-        "options": [1, 10]
+        "options": ["mode1", "mode2", "mode3", "mode4", "mode5"]
       },
       {
         "field": "batchId",
@@ -30,14 +29,12 @@
       {
         "field": "productId",
         "type": "TEXT",
-        "prefix": "productId-",
-        "options": [10001, 99999]
+        "options": ["special"]
       },
       {
         "field": "primaryProductId",
         "type": "TEXT",
-        "prefix": "productId-",
-        "options": [10001, 99999]
+        "options": ["whatever"]
       },
       {
         "field": "rawQuantity",
@@ -57,8 +54,7 @@
       {
         "field": "collateralType",
         "type": "TEXT",
-        "prefix": "collateralType-",
-        "options": [101, 999]
+        "options": ["special"]
       },
       {
         "field": "collateralCurrency",
