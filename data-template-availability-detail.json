@@ -3,60 +3,67 @@
     "schema": [
       {
         "field": "id",
-				"type": "UID",
-				"prefix": "AD-"
+        "type": "UID",
+        "prefix": "AD-"
       },
       {
         "field": "mode",
         "type": "TEXT",
-        "options": ["string"]
+        "prefix": "mode-",
+        "options": [1, 10]
       },
       {
         "field": "batchId",
-        "type": "NUM"
+        "type": "NUM",
+        "options": [100000, 999999]
       },
       {
         "field": "feedId",
-        "type": "NUM"
+        "type": "NUM",
+        "options": [10, 99]
       },
       {
         "field": "accountId",
-        "type": "NUM"
+        "type": "NUM",
+        "options": [10000, 999999]
       },
       {
         "field": "productId",
         "type": "TEXT",
-        "options": ["string"]
+        "prefix": "productId-",
+        "options": [10001, 99999]
       },
       {
         "field": "primaryProductId",
         "type": "TEXT",
-        "options": ["string"]
+        "prefix": "productId-",
+        "options": [10001, 99999]
       },
       {
         "field": "rawQuantity",
         "type": "NUM",
-        "options" : [1,10]
+        "options": [1, 10]
       },
       {
         "field": "reliableQuantity",
         "type": "NUM",
-        "options" : [1,10]
+        "options": [1, 10]
       },
       {
         "field": "divRate",
         "type": "NUM",
-        "options" : [0.01,0.50]
+        "options": [1, 10]
       },
       {
         "field": "collateralType",
         "type": "TEXT",
-        "options": ["string"]
+        "prefix": "collateralType-",
+        "options": [101, 999]
       },
       {
         "field": "collateralCurrency",
         "type": "TEXT",
-        "options": ["string"]
+        "options": ["USD", "EUR", "GBP", "JPY", "CNY"]
       },
       {
         "field": "collateralDescription",
@@ -71,7 +78,7 @@
       {
         "field": "rate",
         "type": "NUM",
-        "options": [0.01, 0.50]
+        "options": [1, 10]
       },
       {
         "field": "createdTime",
@@ -111,7 +118,8 @@
           "schema": [
             {
               "field": "accountId",
-              "type": "NUM"
+              "type": "NUM",
+              "options": [10000, 999999]
             },
             {
               "field": "mnemonic",
