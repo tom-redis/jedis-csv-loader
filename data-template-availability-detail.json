@@ -1,0 +1,204 @@
+{
+  "header": {
+    "schema": [
+      {
+        "field": "id",
+				"type": "UID",
+				"prefix": "AD-"
+      },
+      {
+        "field": "mode",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "batchId",
+        "type": "NUM"
+      },
+      {
+        "field": "feedId",
+        "type": "NUM"
+      },
+      {
+        "field": "accountId",
+        "type": "NUM"
+      },
+      {
+        "field": "productId",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "primaryProductId",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "rawQuantity",
+        "type": "NUM",
+        "options" : [1,10]
+      },
+      {
+        "field": "reliableQuantity",
+        "type": "NUM",
+        "options" : [1,10]
+      },
+      {
+        "field": "divRate",
+        "type": "NUM",
+        "options" : [0.01,0.50]
+      },
+      {
+        "field": "collateralType",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "collateralCurrency",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "collateralDescription",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "rateType",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "rate",
+        "type": "NUM",
+        "options": [0.01, 0.50]
+      },
+      {
+        "field": "createdTime",
+        "type": "DATE"
+      },
+      {
+        "field": "expirationTime",
+        "type": "DATE"
+      },
+      {
+        "field": "source",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "lenderRefId",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "customCode",
+        "type": "TEXT",
+        "options": ["string"]
+      },
+      {
+        "field": "updatedTime",
+        "type": "DATE"
+      }
+    ]
+  },
+  "details": {
+    "schema": [
+      {
+        "field": "account",
+        "type": "OBJ",
+        "obj": {
+          "schema": [
+            {
+              "field": "accountId",
+              "type": "NUM"
+            },
+            {
+              "field": "mnemonic",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "parentMnemonic",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "entity",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "description",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "shortDescription",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "activationStatus",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "category",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "subCategory",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "sourceSystem",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "loadedDate",
+              "type": "DATE"
+            },
+            {
+              "field": "counterPartyId",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "counterPartyGroup",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "updatedBy",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "updatedTime",
+              "type": "DATE"
+            },
+            {
+              "field": "jefEntityId",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "jefClearanceAccount",
+              "type": "TEXT",
+              "options": ["string"]
+            },
+            {
+              "field": "jefEntityName",
+              "type": "TEXT",
+              "options": ["string"]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
