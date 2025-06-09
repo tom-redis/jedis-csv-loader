@@ -5,13 +5,11 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.jsd.jedis</groupId>
-  <artifactId>jsd-jedis</artifactId>
-  <version>DEV</version>
+  <artifactId>jedis-csv-loader</artifactId>
+  <version>0.0.1</version>
   <packaging>jar</packaging>
-
-  <name>client</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+  <name>jedis-csv-loader</name>
+  <description>Utility to load data into Redis</description>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -21,7 +19,7 @@
   </properties>
 
   
-    
+  
   <dependencies>
    <dependency>
       <groupId>redis.clients</groupId>
@@ -85,24 +83,55 @@
 
   <build>
     <plugins>
-
       <plugin>
-            <artifactId>maven-assembly-plugin</artifactId>
-            <executions>
-                <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>single</goal>
-                    </goals>
-                </execution>
-            </executions>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.11.0</version>
+          <configuration>
+            <release>17</release>
+          </configuration>
+      </plugin>
+ 
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.4.1</version>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <filters>
+                  <filter>
+                    <artifact>*:*</artifact>
+                    <excludes>
+                      <exclude>META-INF/LICENSE</exclude>
+                      <exclude>META-INF/NOTICE</exclude>
+                      <exclude>META-INF/MANIFEST.MF</exclude>
+                      <exclude>META-INF/native-image/**</exclude>
+                      <exclude>META-INF/versions/**</exclude>
+                    </excludes>
+                  </filter>
+                </filters>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>        
+        <!-- Maven JAR Plugin -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>3.3.0</version>
             <configuration>
-                <descriptorRefs>
-                    <descriptorRef>jar-with-dependencies</descriptorRef>
-                </descriptorRefs>
+                <archive>
+                    <manifest>
+                        <mainClass>com.jsd.jedis.App</mainClass> 
+                    </manifest>
+                </archive>
             </configuration>
-        </plugin>
-    
+        </plugin>    
     </plugins>
   </build>
 
